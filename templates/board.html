@@ -55,6 +55,7 @@
   .legend{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin:8px 0 4px;font-size:.85rem;color:var(--muted)}
   .activity{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:14px 0;overflow:hidden}
   .activity > h2{margin:0;padding:13px 16px;font-size:1.15rem;background:#eef1e6;border-bottom:1px solid var(--line)}
+  .activity .loc{padding:9px 16px 0;color:var(--green-d);font-size:.9rem;font-weight:600}
   .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;padding:14px 16px}
   .slot{border:1.5px solid var(--line);border-radius:11px;padding:12px;background:#fff;display:flex;flex-direction:column;gap:4px}
   .slot .t{font-weight:700;font-size:1.05rem}
@@ -134,6 +135,7 @@ async function load(){
     d.groups.forEach(g => {
       const sec=document.createElement('div'); sec.className='activity';
       const h=document.createElement('h2'); h.textContent=g.name; sec.appendChild(h);
+      if(g.location){ const lo=document.createElement('div'); lo.className='loc'; lo.textContent='📍 '+g.location; sec.appendChild(lo); }
       const sl=document.createElement('div'); sl.className='slots';
       g.slots.forEach(s => {
         const full=s.spots_left<=0, few=!full && s.spots_left<=3;

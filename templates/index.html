@@ -37,7 +37,7 @@
         text-align:left;background:#fff;transition:.12s;display:flex;flex-direction:column;gap:3px}
   .slot:hover{border-color:var(--green)}
   .slot.sel{border-color:var(--green);background:#eaf3ec;box-shadow:0 0 0 2px #2e6b3e22}
-  .slot.full{opacity:.55;cursor:not-allowed;background:#f7f4f4}
+  .slot.full{opacity:.6;cursor:pointer;background:#f7f4f4}
   .slot .t{font-weight:700}
   .slot .left{font-size:.82rem;color:var(--muted)}
   .slot .left.few{color:var(--accent);font-weight:600}
@@ -173,6 +173,22 @@ document.querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', (
   delivery = b.dataset.delivery; applyDelivery();
 }));
 
+// Waitlist mode kicks in when a FULL slot is selected.
+let waitlistMode = false;
+function applyMode(){
+  if(waitlistMode){
+    $('seg').style.display = 'none';
+    $('phone').required = true;
+    $('phone-label').textContent = 'Mobile phone (required — to contact for an opening)';
+    $('go').textContent = 'Add to waitlist';
+  } else {
+    $('seg').style.display = 'flex';
+    applyDelivery();
+    $('go').textContent = goLabel();
+  }
+  $('go').disabled = false;
+}
+
 async function load(){
   try{
     DATA = await (await fetch('/api/activities')).json();
@@ -199,16 +215,19 @@ function render(){
       el.dataset.id = s.id;
       el.innerHTML = `<span class="t">${s.slot_label}</span>`+
         `<span class="left ${full?'full':(few?'few':'')}">`+
-        `${full?'FULL':s.spots_left+' spot'+(s.spots_left==1?'':'s')+' left'}</span>`;
-      if(!full){
-        el.onclick = () => {
-          document.querySelectorAll('.slot.sel').forEach(x=>x.classList.remove('sel'));
-          el.classList.add('sel');
-          selected = {id:s.id, name:g.name, time:s.slot_label, left:s.spots_left};
+        `${full?'FULL · tap to waitlist':s.spots_left+' spot'+(s.spots_left==1?'':'s')+' left'}</span>`;
+      el.onclick = () => {
+        document.querySelectorAll('.slot.sel').forEach(x=>x.classList.remove('sel'));
+        el.classList.add('sel');
+        waitlistMode = full;
+        selected = {id:s.id, name:g.name, time:s.slot_label, left:s.spots_left};
+        if(full){
+          $('picked').innerHTML = `<b>${g.name}</b> at <b>${s.slot_label}</b> is FULL — adding to the <b>waitlist</b>`;
+        } else {
           $('picked').innerHTML = `Selected: <b>${g.name}</b> at <b>${s.slot_label}</b> · ${s.spots_left} left`;
-          $('go').disabled = false; $('go').textContent = goLabel();
-        };
-      }
+        }
+        applyMode();
+      };
       sl.appendChild(el);
     });
     sec.appendChild(sl); box.appendChild(sec);
@@ -217,7 +236,7 @@ function render(){
   // Re-apply the current selection highlight after a refresh/filter.
   if(selected){
     const m = box.querySelector('.slot[data-id="'+selected.id+'"]');
-    if(m && !m.classList.contains('full')) m.classList.add('sel');
+    if(m) m.classList.add('sel');
   }
 }
 
@@ -226,27 +245,38 @@ $('filter').addEventListener('input', render);
 $('form').addEventListener('submit', async e => {
   e.preventDefault(); $('err').textContent='';
   if(!selected){ $('err').textContent='Please pick a time slot first.'; return; }
-  if(delivery==='text' && !$('phone').value.trim()){ $('err').textContent='Enter a phone number, or switch to Physical ticket.'; return; }
+  if(waitlistMode && !$('phone').value.trim()){ $('err').textContent='A phone number is required for the waitlist.'; return; }
+  if(!waitlistMode && delivery==='text' && !$('phone').value.trim()){ $('err').textContent='Enter a phone number, or switch to Physical ticket.'; return; }
   const payload = {
     name: $('name').value, phone: $('phone').value, email: $('email').value,
     party_size: $('party').value, slot_id: selected.id,
-    registered_by: vol.value.trim(), delivery: delivery
+    registered_by: vol.value.trim()
   };
+  if(!waitlistMode) payload.delivery = delivery;
+  const endpoint = waitlistMode ? '/api/waitlist' : '/api/signup';
+  const back = () => waitlistMode ? 'Add to waitlist' : goLabel();
   $('go').disabled = true; $('go').textContent = 'Submitting…';
   try{
-    const r = await fetch('/api/signup', {method:'POST',
+    const r = await fetch(endpoint, {method:'POST',
       headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
     if(r.status === 401){ $('err').textContent='Session expired — reloading login…';
       setTimeout(()=>location.reload(), 1200); return; }
     const d = await r.json();
     if(!d.ok){ $('err').textContent = d.error || 'Something went wrong.'; await load();
-               $('go').disabled=false; $('go').textContent=goLabel(); return; }
+               $('go').disabled=false; $('go').textContent=back(); return; }
     showTicket(d);
   }catch(err){ $('err').textContent = 'Network error — please try again.';
-               $('go').disabled=false; $('go').textContent=goLabel(); }
+               $('go').disabled=false; $('go').textContent=back(); }
 });
 
 function showTicket(d){
+  if(d.waitlist){
+    $('t-code').textContent = 'WAITLIST';
+    $('t-name').textContent = d.name; $('t-act').textContent = d.activity_name;
+    $('t-time').textContent = d.slot_label; $('t-spots').textContent = d.party_size;
+    $('t-sms').textContent = '⏳ Added to the waitlist — we\'ll text them if a spot opens up.';
+    $('overlay').classList.add('on'); return;
+  }
   $('t-code').textContent = d.ticket_code;
   $('t-name').textContent = d.name;
   $('t-act').textContent  = d.activity_name;
@@ -266,6 +296,7 @@ $('done').onclick = () => {
   $('go').disabled=true; $('go').textContent='Select a slot to continue';
   $('picked').textContent='No time slot selected yet — tap one above.';
   $('err').textContent='';
+  waitlistMode=false; $('seg').style.display='flex';
   delivery='text'; applyDelivery();
   load(); window.scrollTo({top:0,behavior:'smooth'}); $('name').focus();
 };

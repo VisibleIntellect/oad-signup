@@ -28,6 +28,12 @@
   .failed{background:#f7e2e2;color:#b2473a}
   .full{color:#b2473a;font-weight:700}.open{color:#2f6a45}
   .empty{padding:24px;text-align:center;color:#6f6a5d}
+  .actions{white-space:nowrap}
+  .abtn{border:0;border-radius:7px;font-weight:700;font-size:.78rem;padding:6px 9px;cursor:pointer;margin:1px}
+  .abtn.move{background:#2f6a45;color:#fff}
+  .abtn.cancel{background:#fff;color:#b2473a;border:1.5px solid #e6c7c7}
+  .abtn.moveGo{background:#c2872f;color:#fff}
+  .moveSel{font-size:.82rem;padding:4px;border:1.5px solid #e6dfce;border-radius:7px;max-width:180px;margin-right:4px}
 </style>
 </head>
 <body>
@@ -54,9 +60,9 @@
   {% if regs %}
   <table>
     <tr><th>Ticket</th><th>Name</th><th>Phone</th><th>Email</th><th>Spots</th>
-        <th>Activity</th><th>Time</th><th>Text</th><th>Booth</th><th>When</th></tr>
+        <th>Activity</th><th>Time</th><th>Text</th><th>Booth</th><th>When</th><th>Actions</th></tr>
     {% for r in regs %}
-    <tr>
+    <tr data-rid="{{ r.id }}">
       <td><b>{{ r.ticket_code }}</b></td>
       <td>{{ r.name }}</td>
       <td>{{ r.phone or '—' }}</td>
@@ -72,11 +78,40 @@
       </td>
       <td>{{ r.registered_by or '—' }}</td>
       <td>{{ r.created_at.replace('T',' ') }}</td>
+      <td class="actions">
+        <button class="abtn move" onclick="toggleMove(this)">Move</button>
+        <button class="abtn cancel" onclick="cancelReg(this)">Cancel</button>
+        <span class="mover" style="display:none">
+          <select class="moveSel"></select>
+          <button class="abtn moveGo" onclick="moveReg(this)">Move here</button>
+        </span>
+      </td>
     </tr>
     {% endfor %}
   </table>
   {% else %}
   <div class="empty">No registrations yet.</div>
+  {% endif %}
+
+  <h2>Waitlist{% if waitlist %} ({{ waitlist|length }}){% endif %}</h2>
+  {% if waitlist %}
+  <table>
+    <tr><th>Name</th><th>Phone</th><th>Spots</th><th>Activity</th><th>Time</th><th>Booth</th><th>When</th><th></th></tr>
+    {% for w in waitlist %}
+    <tr data-wid="{{ w.id }}">
+      <td>{{ w.name }}</td>
+      <td>{{ w.phone or '—' }}</td>
+      <td>{{ w.party_size }}</td>
+      <td>{{ w.activity_name }}</td>
+      <td>{{ pretty_slot(w.slot) }}</td>
+      <td>{{ w.registered_by or '—' }}</td>
+      <td>{{ w.created_at.replace('T',' ') }}</td>
+      <td class="actions"><button class="abtn cancel" onclick="removeWait(this)">Remove</button></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <div class="empty">No one on the waitlist.</div>
   {% endif %}
 
   <h2>Activity capacity</h2>
@@ -94,5 +129,39 @@
     {% endfor %}
   </table>
 </div>
+<script>
+const KEY = {{ key|tojson }};
+const SLOTS = [{% for a in acts %}{id:{{ a.id|tojson }},label:{{ (a.name ~ ' — ' ~ pretty_slot(a.slot))|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}];
+async function api(path, body){
+  try{
+    const r = await fetch(path+'?key='+encodeURIComponent(KEY),
+      {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    return await r.json().catch(()=>({ok:false,error:'Unexpected server response.'}));
+  }catch(e){ return {ok:false, error:'Network error — please try again.'}; }
+}
+function done(d){ if(d.ok){ location.reload(); } else { alert(d.error || 'Something went wrong.'); } }
+document.querySelectorAll('.moveSel').forEach(sel => {
+  sel.innerHTML = SLOTS.map(s => '<option value="'+s.id+'">'+s.label+'</option>').join('');
+});
+function toggleMove(btn){
+  const m = btn.closest('.actions').querySelector('.mover');
+  m.style.display = (m.style.display === 'none') ? 'inline' : 'none';
+}
+async function cancelReg(btn){
+  const tr = btn.closest('tr');
+  if(!confirm('Cancel this booking and free up its spots?')) return;
+  done(await api('/api/admin/cancel_registration', {id: Number(tr.dataset.rid)}));
+}
+async function moveReg(btn){
+  const tr = btn.closest('tr');
+  const sel = btn.closest('.actions').querySelector('.moveSel');
+  done(await api('/api/admin/move_registration', {id: Number(tr.dataset.rid), new_slot_id: sel.value}));
+}
+async function removeWait(btn){
+  const tr = btn.closest('tr');
+  if(!confirm('Remove this person from the waitlist?')) return;
+  done(await api('/api/admin/waitlist_remove', {id: Number(tr.dataset.wid)}));
+}
+</script>
 </body>
 </html>

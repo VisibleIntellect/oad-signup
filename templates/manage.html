@@ -55,6 +55,7 @@
       <div class="f"><label>Activity name</label><input id="a-name" class="name" placeholder="e.g. Kayak"></div>
       <div class="f"><label>Time (blank = no set time)</label><input id="a-slot" type="time"></div>
       <div class="f"><label>Capacity</label><input id="a-cap" type="number" min="0" value="10"></div>
+      <div class="f"><label>Meeting location (optional)</label><input id="a-loc" class="name" placeholder="e.g. Meet at the dock"></div>
       <button class="add" onclick="addSlot()">Add slot</button>
     </div>
     <p class="hint">Tip: give it the <b>exact same name</b> as an existing activity to add another time to that activity. A new name creates a new activity.</p>
@@ -77,12 +78,13 @@
   <div class="card">
     <h2>All time slots ({{ acts|length }})</h2>
     <table>
-      <tr><th>Activity name</th><th>Time</th><th>Capacity</th><th>Booked</th><th>Actions</th></tr>
+      <tr><th>Activity name</th><th>Time</th><th>Capacity</th><th>Meeting location</th><th>Booked</th><th>Actions</th></tr>
       {% for a in acts %}
       <tr data-id="{{ a.id }}">
         <td><input class="name e-name" value="{{ a.name }}"></td>
         <td><input type="time" class="e-slot" value="{{ a.slot or '' }}"></td>
         <td><input type="number" min="0" class="e-cap" value="{{ a.capacity }}"></td>
+        <td><input class="e-loc" value="{{ a.location or '' }}" placeholder="—"></td>
         <td class="booked">{{ a.registered }}</td>
         <td class="actions">
           <button class="save" onclick="saveRow(this)">Save</button>
@@ -112,7 +114,8 @@ async function addSlot(){
   if(!name){ alert('Enter an activity name.'); return; }
   done(await api('/api/admin/add', {name,
     slot:document.getElementById('a-slot').value,
-    capacity:document.getElementById('a-cap').value}));
+    capacity:document.getElementById('a-cap').value,
+    location:document.getElementById('a-loc').value}));
 }
 async function renameAct(){
   const oldn=document.getElementById('r-old').value;
@@ -127,7 +130,8 @@ async function saveRow(btn){
     id:tr.dataset.id,
     name:tr.querySelector('.e-name').value,
     slot:tr.querySelector('.e-slot').value,
-    capacity:tr.querySelector('.e-cap').value}));
+    capacity:tr.querySelector('.e-cap').value,
+    location:tr.querySelector('.e-loc').value}));
 }
 async function delRow(btn){
   const tr=btn.closest('tr');
