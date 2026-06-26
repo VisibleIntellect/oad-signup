@@ -53,6 +53,8 @@
   .seg-btn{flex:1;padding:11px 8px;border:1.5px solid var(--line);border-radius:10px;background:#fff;
            font-size:.9rem;font-weight:700;cursor:pointer;color:#3a4a3f}
   .seg-btn.on{border-color:var(--green);background:#eaf3ec;color:var(--green-d);box-shadow:0 0 0 2px #2f6a4522}
+  .consent{font-size:.74rem;color:var(--muted);margin:6px 0 2px;line-height:1.35}
+  .consent a{color:var(--green-d);font-weight:600}
   label{display:block;font-size:.82rem;font-weight:600;margin:10px 0 4px}
   input{width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;
         font-size:1rem}
@@ -112,6 +114,7 @@
       <button type="button" class="seg-btn on" data-delivery="text" id="seg-text">📱 Text ticket</button>
       <button type="button" class="seg-btn" data-delivery="physical" id="seg-phys">🎫 Physical ticket</button>
     </div>
+    <p class="consent">By choosing <b>Text ticket</b>, the participant agrees to receive one confirmation text from Friends of Big Bear Valley. Message frequency is one per sign-up. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help. <a href="/sms-terms" target="_blank" rel="noopener">Terms</a> &middot; <a href="/sms-privacy" target="_blank" rel="noopener">Privacy</a>.</p>
     <label>Full name / family name</label>
     <input id="name" name="name" placeholder="e.g. The Garcia Family" required>
     <div class="row">
