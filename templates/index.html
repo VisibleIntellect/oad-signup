@@ -100,12 +100,12 @@
     <a class="logout" href="/booth-logout">Log out</a>
   </div>
 
-  <p class="muted">Find the activity the tourist asked for, pick the time, enter their info, and they'll get a confirmation text. First come, first served.</p>
+  <p class="muted">Find the activity the participant asked for, pick the time, enter their info, and they'll get a confirmation text. First come, first served.</p>
   <input class="filter" id="filter" placeholder="🔍 Find an activity — type e.g. kayak, jeep, 2:00">
   <div id="activities">Loading activities…</div>
 
   <form class="form" id="form" autocomplete="off">
-    <h3>Tourist details</h3>
+    <h3>Participant details</h3>
     <p class="picked" id="picked">No time slot selected yet — tap one above.</p>
     <label>How do they want their ticket?</label>
     <div class="seg" id="seg">
@@ -143,7 +143,7 @@
         <dt>Spots</dt><dd id="t-spots"></dd>
       </dl>
       <div class="sms-note" id="t-sms"></div>
-      <button id="done">Done — next tourist</button>
+      <button id="done">Done — next participant</button>
     </div>
   </div>
 </div>
@@ -284,7 +284,7 @@ function showTicket(d){
   $('t-spots').textContent= d.party_size;
   const note = $('t-sms');
   if(d.sms_status==='physical'){ note.textContent = '🎫 Physical ticket — print or show this screen to the participant.'; }
-  else if(d.sms_status==='sent'){ note.textContent = '📲 Confirmation text sent to the tourist.'; }
+  else if(d.sms_status==='sent'){ note.textContent = '📲 Confirmation text sent to the participant.'; }
   else if(d.sms_status==='not_configured'){ note.textContent = '📝 Texting isn\'t turned on yet — show this screen as the ticket.'; }
   else { note.textContent = '⚠️ Couldn\'t send the text, but the signup is saved. Show this screen as the ticket.'; }
   $('overlay').classList.add('on');
