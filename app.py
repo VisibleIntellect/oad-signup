@@ -109,7 +109,20 @@ def init_db():
             slot TEXT,
             capacity INTEGER NOT NULL,
             registered INTEGER NOT NULL DEFAULT 0,
-            sort_order INTEGER
+            sort_order INTEGER,
+            location TEXT
+        )""")
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS waitlist (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            phone TEXT,
+            party_size INTEGER NOT NULL,
+            activity_id TEXT NOT NULL,
+            activity_name TEXT NOT NULL,
+            slot TEXT,
+            registered_by TEXT,
+            created_at TEXT NOT NULL
         )""")
     db.execute("""
         CREATE TABLE IF NOT EXISTS registrations (
@@ -126,20 +139,23 @@ def init_db():
             registered_by TEXT,
             created_at TEXT NOT NULL
         )""")
-    # Defensive migration: add registered_by if an older DB predates it.
+    # Defensive migrations: add columns if an older DB predates them.
     cols = [r[1] for r in db.execute("PRAGMA table_info(registrations)").fetchall()]
     if "registered_by" not in cols:
         db.execute("ALTER TABLE registrations ADD COLUMN registered_by TEXT")
+    acols = [r[1] for r in db.execute("PRAGMA table_info(activities)").fetchall()]
+    if "location" not in acols:
+        db.execute("ALTER TABLE activities ADD COLUMN location TEXT")
     # Seed activities once (only if table empty). Edit data/activities.json and
     # delete data/oad.db to re-seed from scratch.
     count = db.execute("SELECT COUNT(*) FROM activities").fetchone()[0]
     if count == 0:
         for i, a in enumerate(EVENT_DATA["activities"]):
             db.execute(
-                "INSERT INTO activities (id,name,slot,capacity,registered,sort_order)"
-                " VALUES (?,?,?,?,?,?)",
+                "INSERT INTO activities (id,name,slot,capacity,registered,sort_order,location)"
+                " VALUES (?,?,?,?,?,?,?)",
                 (a["id"], a["name"], a.get("slot"), int(a["capacity"]),
-                 int(a.get("registered", 0)), i),
+                 int(a.get("registered", 0)), i, a.get("location")),
             )
     db.commit()
     db.close()
@@ -338,11 +354,13 @@ def api_activities():
             "capacity": r["capacity"],
             "spots_left": left,
             "status": "Full" if left <= 0 else "Open",
+            "location": r["location"],
         })
-    return jsonify({
-        "event": EVENT,
-        "groups": [{"name": k, "slots": v} for k, v in groups.items()],
-    })
+    out_groups = []
+    for k, v in groups.items():
+        loc = next((s["location"] for s in v if s.get("location")), None)
+        out_groups.append({"name": k, "location": loc, "slots": v})
+    return jsonify({"event": EVENT, "groups": out_groups})
 
 
 @app.route("/api/signup", methods=["POST"])
@@ -428,9 +446,10 @@ def admin():
         "SELECT * FROM registrations ORDER BY created_at DESC"
     ).fetchall()
     acts = db.execute("SELECT * FROM activities ORDER BY sort_order").fetchall()
+    waitlist = db.execute("SELECT * FROM waitlist ORDER BY created_at").fetchall()
     total_spots = sum(r["party_size"] for r in regs)
     return render_template(
-        "admin.html", event=EVENT, regs=regs, acts=acts,
+        "admin.html", event=EVENT, regs=regs, acts=acts, waitlist=waitlist,
         key=key, pretty_slot=pretty_slot, total_regs=len(regs),
         total_spots=total_spots,
     )
@@ -509,11 +528,12 @@ def admin_add():
         return jsonify({"ok": False, "error": "Capacity must be a whole number."}), 400
     if capacity < 0:
         return jsonify({"ok": False, "error": "Capacity can't be negative."}), 400
+    location = (d.get("location") or "").strip() or None
     db = get_db()
     new_id = "U" + secrets.token_hex(3).upper()
     nxt = (db.execute("SELECT MAX(sort_order) FROM activities").fetchone()[0] or 0) + 1
-    db.execute("INSERT INTO activities (id,name,slot,capacity,registered,sort_order)"
-               " VALUES (?,?,?,?,0,?)", (new_id, name, slot, capacity, nxt))
+    db.execute("INSERT INTO activities (id,name,slot,capacity,registered,sort_order,location)"
+               " VALUES (?,?,?,?,0,?,?)", (new_id, name, slot, capacity, nxt, location))
     db.commit()
     return jsonify({"ok": True})
 
@@ -541,8 +561,9 @@ def admin_update():
     if capacity < row["registered"]:
         return jsonify({"ok": False,
                         "error": f"Capacity can't be below the {row['registered']} already booked."}), 400
-    db.execute("UPDATE activities SET name=?, slot=?, capacity=? WHERE id=?",
-               (name, slot, capacity, slot_id))
+    location = (d.get("location") or "").strip() or None
+    db.execute("UPDATE activities SET name=?, slot=?, capacity=?, location=? WHERE id=?",
+               (name, slot, capacity, location, slot_id))
     db.commit()
     return jsonify({"ok": True})
 
@@ -581,6 +602,97 @@ def admin_rename():
     db.execute("UPDATE registrations SET activity_name=? WHERE activity_name=?", (new, old))
     db.commit()
     return jsonify({"ok": True, "updated": cur.rowcount})
+
+
+@app.route("/api/admin/cancel_registration", methods=["POST"])
+def admin_cancel_reg():
+    if not admin_key_ok():
+        return jsonify({"ok": False, "error": "Not authorized."}), 401
+    rid = (request.get_json(silent=True) or {}).get("id")
+    db = get_db()
+    reg = db.execute("SELECT * FROM registrations WHERE id=?", (rid,)).fetchone()
+    if not reg:
+        return jsonify({"ok": False, "error": "Registration not found."}), 404
+    db.execute("UPDATE activities SET registered = MAX(registered - ?, 0) WHERE id=?",
+               (reg["party_size"], reg["activity_id"]))
+    db.execute("DELETE FROM registrations WHERE id=?", (rid,))
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/admin/move_registration", methods=["POST"])
+def admin_move_reg():
+    if not admin_key_ok():
+        return jsonify({"ok": False, "error": "Not authorized."}), 401
+    d = request.get_json(silent=True) or {}
+    rid = d.get("id")
+    new_id = (d.get("new_slot_id") or "").strip()
+    db = get_db()
+    reg = db.execute("SELECT * FROM registrations WHERE id=?", (rid,)).fetchone()
+    if not reg:
+        return jsonify({"ok": False, "error": "Registration not found."}), 404
+    if new_id == reg["activity_id"]:
+        return jsonify({"ok": False, "error": "That's already the current slot."}), 400
+    newact = db.execute("SELECT * FROM activities WHERE id=?", (new_id,)).fetchone()
+    if not newact:
+        return jsonify({"ok": False, "error": "Target slot not found."}), 404
+    n = reg["party_size"]
+    cur = db.execute(
+        "UPDATE activities SET registered = registered + ? "
+        "WHERE id = ? AND (capacity - registered) >= ?", (n, new_id, n))
+    if cur.rowcount == 0:
+        left = newact["capacity"] - newact["registered"]
+        db.commit()
+        return jsonify({"ok": False, "error": f"Only {max(left,0)} spot(s) left in that slot."}), 409
+    db.execute("UPDATE activities SET registered = MAX(registered - ?, 0) WHERE id=?",
+               (n, reg["activity_id"]))
+    db.execute("UPDATE registrations SET activity_id=?, activity_name=?, slot=? WHERE id=?",
+               (new_id, newact["name"], newact["slot"], rid))
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/waitlist", methods=["POST"])
+def api_waitlist():
+    if not session.get("booth_ok"):
+        return jsonify({"ok": False, "error": "Booth login required. Please refresh and sign in."}), 401
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    phone = normalize_phone((data.get("phone") or "").strip())
+    slot_id = (data.get("slot_id") or "").strip()
+    registered_by = (data.get("registered_by") or "").strip()
+    try:
+        party_size = int(data.get("party_size") or 1)
+    except (ValueError, TypeError):
+        party_size = 1
+    if not name:
+        return jsonify({"ok": False, "error": "Please enter a name."}), 400
+    if not phone:
+        return jsonify({"ok": False, "error": "A phone number is required for the waitlist, so they can be contacted."}), 400
+    db = get_db()
+    act = db.execute("SELECT * FROM activities WHERE id=?", (slot_id,)).fetchone()
+    if not act:
+        return jsonify({"ok": False, "error": "That activity slot was not found."}), 400
+    db.execute(
+        "INSERT INTO waitlist (name,phone,party_size,activity_id,activity_name,slot,registered_by,created_at)"
+        " VALUES (?,?,?,?,?,?,?,?)",
+        (name, phone, party_size, slot_id, act["name"], act["slot"], registered_by,
+         datetime.now().isoformat(timespec="seconds")))
+    db.commit()
+    return jsonify({"ok": True, "waitlist": True, "name": name,
+                    "activity_name": act["name"], "slot_label": pretty_slot(act["slot"]),
+                    "party_size": party_size})
+
+
+@app.route("/api/admin/waitlist_remove", methods=["POST"])
+def admin_waitlist_remove():
+    if not admin_key_ok():
+        return jsonify({"ok": False, "error": "Not authorized."}), 401
+    wid = (request.get_json(silent=True) or {}).get("id")
+    db = get_db()
+    db.execute("DELETE FROM waitlist WHERE id=?", (wid,))
+    db.commit()
+    return jsonify({"ok": True})
 
 
 # Initialize the database on import so it also runs under a production server
