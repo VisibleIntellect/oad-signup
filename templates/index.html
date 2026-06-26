@@ -49,6 +49,10 @@
   .form h3{margin:0 0 4px}
   .picked{font-size:.92rem;color:var(--muted);margin:0 0 12px}
   .picked b{color:var(--green-d)}
+  .seg{display:flex;gap:8px;margin:2px 0 4px}
+  .seg-btn{flex:1;padding:11px 8px;border:1.5px solid var(--line);border-radius:10px;background:#fff;
+           font-size:.9rem;font-weight:700;cursor:pointer;color:#3a4a3f}
+  .seg-btn.on{border-color:var(--green);background:#eaf3ec;color:var(--green-d);box-shadow:0 0 0 2px #2f6a4522}
   label{display:block;font-size:.82rem;font-weight:600;margin:10px 0 4px}
   input{width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;
         font-size:1rem}
@@ -103,11 +107,16 @@
   <form class="form" id="form" autocomplete="off">
     <h3>Tourist details</h3>
     <p class="picked" id="picked">No time slot selected yet — tap one above.</p>
+    <label>How do they want their ticket?</label>
+    <div class="seg" id="seg">
+      <button type="button" class="seg-btn on" data-delivery="text" id="seg-text">📱 Text ticket</button>
+      <button type="button" class="seg-btn" data-delivery="physical" id="seg-phys">🎫 Physical ticket</button>
+    </div>
     <label>Full name / family name</label>
     <input id="name" name="name" placeholder="e.g. The Garcia Family" required>
     <div class="row">
       <div>
-        <label>Mobile phone (required — confirmation text)</label>
+        <label id="phone-label">Mobile phone (required — for the text)</label>
         <input id="phone" name="phone" class="req" type="tel" inputmode="tel" placeholder="(555) 555-5555" required>
       </div>
       <div>
@@ -149,6 +158,21 @@ const vol = $('vol');
 vol.value = localStorage.getItem('oad_booth_vol') || '';
 vol.addEventListener('input', () => localStorage.setItem('oad_booth_vol', vol.value.trim()));
 
+// Ticket delivery choice: text or physical.
+let delivery = 'text';
+function goLabel(){ return delivery==='physical' ? 'Sign up (physical ticket)' : 'Sign up & send text'; }
+function applyDelivery(){
+  $('seg-text').classList.toggle('on', delivery==='text');
+  $('seg-phys').classList.toggle('on', delivery==='physical');
+  const ph = $('phone');
+  if(delivery==='text'){ ph.required = true; $('phone-label').textContent = 'Mobile phone (required — for the text)'; }
+  else { ph.required = false; $('phone-label').textContent = 'Mobile phone (optional)'; }
+  if(selected && !$('go').disabled) $('go').textContent = goLabel();
+}
+document.querySelectorAll('.seg-btn').forEach(b => b.addEventListener('click', () => {
+  delivery = b.dataset.delivery; applyDelivery();
+}));
+
 async function load(){
   try{
     DATA = await (await fetch('/api/activities')).json();
@@ -182,7 +206,7 @@ function render(){
           el.classList.add('sel');
           selected = {id:s.id, name:g.name, time:s.slot_label, left:s.spots_left};
           $('picked').innerHTML = `Selected: <b>${g.name}</b> at <b>${s.slot_label}</b> · ${s.spots_left} left`;
-          $('go').disabled = false; $('go').textContent = 'Sign up & send text';
+          $('go').disabled = false; $('go').textContent = goLabel();
         };
       }
       sl.appendChild(el);
@@ -202,11 +226,11 @@ $('filter').addEventListener('input', render);
 $('form').addEventListener('submit', async e => {
   e.preventDefault(); $('err').textContent='';
   if(!selected){ $('err').textContent='Please pick a time slot first.'; return; }
-  if(!$('phone').value.trim()){ $('err').textContent='A mobile phone number is required.'; return; }
+  if(delivery==='text' && !$('phone').value.trim()){ $('err').textContent='Enter a phone number, or switch to Physical ticket.'; return; }
   const payload = {
     name: $('name').value, phone: $('phone').value, email: $('email').value,
     party_size: $('party').value, slot_id: selected.id,
-    registered_by: vol.value.trim()
+    registered_by: vol.value.trim(), delivery: delivery
   };
   $('go').disabled = true; $('go').textContent = 'Submitting…';
   try{
@@ -216,10 +240,10 @@ $('form').addEventListener('submit', async e => {
       setTimeout(()=>location.reload(), 1200); return; }
     const d = await r.json();
     if(!d.ok){ $('err').textContent = d.error || 'Something went wrong.'; await load();
-               $('go').disabled=false; $('go').textContent='Sign up & send text'; return; }
+               $('go').disabled=false; $('go').textContent=goLabel(); return; }
     showTicket(d);
   }catch(err){ $('err').textContent = 'Network error — please try again.';
-               $('go').disabled=false; $('go').textContent='Sign up & send text'; }
+               $('go').disabled=false; $('go').textContent=goLabel(); }
 });
 
 function showTicket(d){
@@ -229,8 +253,9 @@ function showTicket(d){
   $('t-time').textContent = d.slot_label;
   $('t-spots').textContent= d.party_size;
   const note = $('t-sms');
-  if(d.sms_status==='sent'){ note.textContent = '📲 Confirmation text sent to the tourist.'; }
-  else if(d.sms_status==='not_configured'){ note.textContent = '📝 Texting isn\'t turned on yet — show this screen as the ticket. (See README to enable Twilio.)'; }
+  if(d.sms_status==='physical'){ note.textContent = '🎫 Physical ticket — print or show this screen to the participant.'; }
+  else if(d.sms_status==='sent'){ note.textContent = '📲 Confirmation text sent to the tourist.'; }
+  else if(d.sms_status==='not_configured'){ note.textContent = '📝 Texting isn\'t turned on yet — show this screen as the ticket.'; }
   else { note.textContent = '⚠️ Couldn\'t send the text, but the signup is saved. Show this screen as the ticket.'; }
   $('overlay').classList.add('on');
 }
@@ -241,6 +266,7 @@ $('done').onclick = () => {
   $('go').disabled=true; $('go').textContent='Select a slot to continue';
   $('picked').textContent='No time slot selected yet — tap one above.';
   $('err').textContent='';
+  delivery='text'; applyDelivery();
   load(); window.scrollTo({top:0,behavior:'smooth'}); $('name').focus();
 };
 

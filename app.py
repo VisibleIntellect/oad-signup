@@ -225,6 +225,77 @@ def logo():
     return _logo_response()
 
 
+# ----- SMS compliance pages (for Twilio A2P 10DLC registration) -------------
+SMS_PRIVACY_BODY = (
+    "<p><strong>Outdoor Adventure Day (OAD) text messages.</strong> This policy explains how we "
+    "handle mobile phone numbers and text messages for the Outdoor Adventure Day activity sign-up.</p>"
+    "<h2>What we collect and why</h2>"
+    "<p>When you register for an activity time slot, a Friends of Big Bear Valley volunteer collects "
+    "your name and mobile phone number for one purpose only: to send you a confirmation text with your "
+    "ticket details.</p>"
+    "<h2>We do not share or sell your information</h2>"
+    "<p>We do <strong>not</strong> sell, rent, or share your mobile phone number or your SMS consent "
+    "with any third parties or affiliates for marketing or promotional purposes. No mobile information "
+    "is shared with third parties for their own marketing or promotional purposes. Your number is shared "
+    "only with our messaging provider solely to deliver the confirmation you requested.</p>"
+    "<h2>Message frequency and cost</h2>"
+    "<p>This is a transactional program — you typically receive one message per registration. "
+    "Message and data rates may apply.</p>"
+    "<h2>Opting out and help</h2>"
+    "<p>Reply <strong>STOP</strong> to any message to opt out at any time. Reply <strong>HELP</strong> "
+    "for assistance, or contact us at "
+    "<a href=\"https://friendsofbigbearvalley.org/contact/\">friendsofbigbearvalley.org/contact</a>.</p>"
+)
+
+SMS_TERMS_BODY = (
+    "<p><strong>Outdoor Adventure Day (OAD) text messages.</strong></p>"
+    "<h2>Program description</h2>"
+    "<p>When you register for an activity at Outdoor Adventure Day, you will receive a one-time SMS text "
+    "message confirming your activity, time slot, number of spots, and ticket code.</p>"
+    "<h2>Message frequency</h2>"
+    "<p>Transactional — generally one message per registration.</p>"
+    "<h2>Cost</h2>"
+    "<p>Message and data rates may apply.</p>"
+    "<h2>To opt out or get help</h2>"
+    "<p>Reply <strong>STOP</strong> at any time to stop receiving messages. Reply <strong>HELP</strong> "
+    "for help, or contact us at "
+    "<a href=\"https://friendsofbigbearvalley.org/contact/\">friendsofbigbearvalley.org/contact</a>.</p>"
+    "<h2>Disclaimer</h2>"
+    "<p>Carriers are not liable for delayed or undelivered messages. Supported carriers include major "
+    "U.S. mobile carriers.</p>"
+)
+
+
+def _policy_page(title, body):
+    page = (
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        "<title>" + title + " - Friends of Big Bear Valley</title><style>"
+        "body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;"
+        "background:#f5f1e7;color:#28251f;line-height:1.55}"
+        "header{background:linear-gradient(160deg,#2f6a45,#1f4e31);color:#fff;padding:20px 18px;text-align:center}"
+        "header .org{font-size:.9rem;letter-spacing:.04em;text-transform:uppercase;color:#dcebdf}"
+        "header h1{margin:4px 0 0;font-size:1.4rem}"
+        ".wrap{max-width:760px;margin:0 auto;padding:22px 18px}"
+        ".card{background:#fff;border:1px solid #e6dfce;border-radius:14px;padding:20px 24px}"
+        "h2{color:#1f4e31;font-size:1.05rem;margin:20px 0 6px}a{color:#2f6a45}"
+        "</style></head><body><header><div class=\"org\">Friends of Big Bear Valley</div>"
+        "<h1>" + title + "</h1></header><div class=\"wrap\"><div class=\"card\">" + body +
+        "</div></div></body></html>"
+    )
+    return Response(page, mimetype="text/html")
+
+
+@app.route("/sms-privacy")
+def sms_privacy():
+    return _policy_page("SMS Privacy Policy", SMS_PRIVACY_BODY)
+
+
+@app.route("/sms-terms")
+def sms_terms():
+    return _policy_page("SMS Terms &amp; Conditions", SMS_TERMS_BODY)
+
+
 @app.route("/signup")
 def signup_page():
     # Booth-staff-only page used to register people (and send the text).
@@ -284,6 +355,9 @@ def api_signup():
     email = (data.get("email") or "").strip()
     slot_id = (data.get("slot_id") or "").strip()
     registered_by = (data.get("registered_by") or "").strip()
+    delivery = (data.get("delivery") or "text").strip().lower()
+    if delivery not in ("text", "physical"):
+        delivery = "text"
     try:
         party_size = int(data.get("party_size") or 1)
     except (ValueError, TypeError):
@@ -294,8 +368,8 @@ def api_signup():
     if party_size < 1:
         return jsonify({"ok": False, "error": "Number of spots must be at least 1."}), 400
     phone = normalize_phone(phone_raw)
-    if not phone:
-        return jsonify({"ok": False, "error": "A mobile phone number is required to send the confirmation text."}), 400
+    if delivery == "text" and not phone:
+        return jsonify({"ok": False, "error": "A mobile phone number is required to text the ticket. Or choose 'Physical ticket'."}), 400
 
     db = get_db()
     act = db.execute("SELECT * FROM activities WHERE id=?", (slot_id,)).fetchone()
@@ -319,7 +393,7 @@ def api_signup():
 
     code = make_ticket_code()
     body = build_message(name, act["name"], act["slot"], party_size, code)
-    sms_status = send_sms(phone, body)
+    sms_status = send_sms(phone, body) if delivery == "text" else "physical"
 
     db.execute(
         "INSERT INTO registrations "

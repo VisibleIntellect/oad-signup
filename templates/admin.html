@@ -65,7 +65,8 @@
       <td>{{ r.activity_name }}</td>
       <td>{{ pretty_slot(r.slot) }}</td>
       <td>
-        {% if r.sms_status == 'sent' %}<span class="pill sent">sent</span>
+        {% if r.sms_status == 'sent' %}<span class="pill sent">text sent</span>
+        {% elif r.sms_status == 'physical' %}<span class="pill off">physical</span>
         {% elif r.sms_status == 'failed' %}<span class="pill failed">failed</span>
         {% else %}<span class="pill off">on screen</span>{% endif %}
       </td>
