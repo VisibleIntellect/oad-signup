@@ -1,0 +1,346 @@
+{
+  "event": {
+    "name": "Outdoor Adventure Day (OAD) 2026",
+    "date": "July 11, 2026",
+    "location": "Christmas Tree Lot, Big Bear Lake",
+    "org": "Friends of Big Bear Valley (FOBBV)"
+  },
+  "activities": [
+    {
+      "id": "A001",
+      "name": "Kayak",
+      "slot": "10:00",
+      "capacity": 10,
+      "registered": 10
+    },
+    {
+      "id": "A002",
+      "name": "Kayak",
+      "slot": "11:00",
+      "capacity": 10,
+      "registered": 0
+    },
+    {
+      "id": "A003",
+      "name": "Kayak",
+      "slot": "12:00",
+      "capacity": 10,
+      "registered": 0
+    },
+    {
+      "id": "A004",
+      "name": "Kayak",
+      "slot": "13:00",
+      "capacity": 10,
+      "registered": 0
+    },
+    {
+      "id": "A005",
+      "name": "Kayak",
+      "slot": "14:00",
+      "capacity": 10,
+      "registered": 0
+    },
+    {
+      "id": "A006",
+      "name": "Kayak",
+      "slot": "15:00",
+      "capacity": 10,
+      "registered": 0
+    },
+    {
+      "id": "A007",
+      "name": "Kayak",
+      "slot": "16:00",
+      "capacity": 10,
+      "registered": 0
+    },
+    {
+      "id": "A008",
+      "name": "Kayak",
+      "slot": "17:00",
+      "capacity": 10,
+      "registered": 0
+    },
+    {
+      "id": "B001",
+      "name": "watersports",
+      "slot": "10:00",
+      "capacity": 50,
+      "registered": 5
+    },
+    {
+      "id": "B002",
+      "name": "watersports",
+      "slot": "14:00",
+      "capacity": 50,
+      "registered": 0
+    },
+    {
+      "id": "C001",
+      "name": "Kayaks",
+      "slot": "10:00",
+      "capacity": 10,
+      "registered": 0
+    },
+    {
+      "id": "C002",
+      "name": "Kayaks",
+      "slot": "11:00",
+      "capacity": 10,
+      "registered": 0
+    },
+    {
+      "id": "C003",
+      "name": "Kayaks",
+      "slot": "12:00",
+      "capacity": 10,
+      "registered": 0
+    },
+    {
+      "id": "C004",
+      "name": "Kayaks",
+      "slot": "13:00",
+      "capacity": 10,
+      "registered": 0
+    },
+    {
+      "id": "C005",
+      "name": "Kayaks",
+      "slot": "14:00",
+      "capacity": 10,
+      "registered": 0
+    },
+    {
+      "id": "C006",
+      "name": "Kayaks",
+      "slot": "15:00",
+      "capacity": 10,
+      "registered": 0
+    },
+    {
+      "id": "D001",
+      "name": "SUP",
+      "slot": "10:00",
+      "capacity": 5,
+      "registered": 0
+    },
+    {
+      "id": "D002",
+      "name": "SUP",
+      "slot": "11:00",
+      "capacity": 5,
+      "registered": 0
+    },
+    {
+      "id": "D003",
+      "name": "SUP",
+      "slot": "12:00",
+      "capacity": 5,
+      "registered": 0
+    },
+    {
+      "id": "D004",
+      "name": "SUP",
+      "slot": "13:00",
+      "capacity": 5,
+      "registered": 0
+    },
+    {
+      "id": "D005",
+      "name": "SUP",
+      "slot": "14:00",
+      "capacity": 5,
+      "registered": 0
+    },
+    {
+      "id": "D006",
+      "name": "SUP",
+      "slot": "15:00",
+      "capacity": 5,
+      "registered": 0
+    },
+    {
+      "id": "E001",
+      "name": "Bike",
+      "slot": "09:30",
+      "capacity": 6,
+      "registered": 3
+    },
+    {
+      "id": "E002",
+      "name": "Bike",
+      "slot": "11:00",
+      "capacity": 6,
+      "registered": 0
+    },
+    {
+      "id": "E003",
+      "name": "Bike",
+      "slot": "12:00",
+      "capacity": 6,
+      "registered": 0
+    },
+    {
+      "id": "E004",
+      "name": "Bike",
+      "slot": "14:00",
+      "capacity": 6,
+      "registered": 0
+    },
+    {
+      "id": "E005",
+      "name": "Bike",
+      "slot": "15:30",
+      "capacity": 6,
+      "registered": 0
+    },
+    {
+      "id": "E006",
+      "name": "Bike",
+      "slot": "17:00",
+      "capacity": 6,
+      "registered": 0
+    },
+    {
+      "id": "F001",
+      "name": "Tourzilla Jeep Tours (sAt)",
+      "slot": "09:30",
+      "capacity": 11,
+      "registered": 0
+    },
+    {
+      "id": "F002",
+      "name": "Tourzilla Jeep Tours (sAt)",
+      "slot": "10:15",
+      "capacity": 11,
+      "registered": 0
+    },
+    {
+      "id": "F003",
+      "name": "Tourzilla Jeep Tours (sAt)",
+      "slot": "11:00",
+      "capacity": 11,
+      "registered": 0
+    },
+    {
+      "id": "F004",
+      "name": "Tourzilla Jeep Tours (sAt)",
+      "slot": "11:45",
+      "capacity": 11,
+      "registered": 0
+    },
+    {
+      "id": "F005",
+      "name": "Tourzilla Jeep Tours (sAt)",
+      "slot": "12:30",
+      "capacity": 11,
+      "registered": 0
+    },
+    {
+      "id": "F006",
+      "name": "Tourzilla Jeep Tours (sAt)",
+      "slot": "13:00",
+      "capacity": 11,
+      "registered": 0
+    },
+    {
+      "id": "F007",
+      "name": "Tourzilla Jeep Tours (sAt)",
+      "slot": "01:45",
+      "capacity": 11,
+      "registered": 0
+    },
+    {
+      "id": "F008",
+      "name": "Tourzilla Jeep Tours (sAt)",
+      "slot": "02:30",
+      "capacity": 11,
+      "registered": 0
+    },
+    {
+      "id": "F009",
+      "name": "Tourzilla Jeep Tours (sAt)",
+      "slot": "03:15",
+      "capacity": 11,
+      "registered": 0
+    },
+    {
+      "id": "F010",
+      "name": "Tourzilla Jeep Tours (sAt)",
+      "slot": "16:00",
+      "capacity": 11,
+      "registered": 0
+    },
+    {
+      "id": "F011",
+      "name": "Tourzilla Jeep Tours (sAt)",
+      "slot": "04:45",
+      "capacity": 11,
+      "registered": 0
+    },
+    {
+      "id": "F012",
+      "name": "Tourzilla Jeep Tours (sAt)",
+      "slot": "05:30",
+      "capacity": 11,
+      "registered": 0
+    },
+    {
+      "id": "F013",
+      "name": "Tourzilla Jeep Tours (Sunday)",
+      "slot": "09:30",
+      "capacity": 11,
+      "registered": 0
+    },
+    {
+      "id": "F014",
+      "name": "Tourzilla Jeep Tours (Sunday)",
+      "slot": "10:15",
+      "capacity": 11,
+      "registered": 0
+    },
+    {
+      "id": "F015",
+      "name": "Tourzilla Jeep Tours (Sunday)",
+      "slot": "11:00",
+      "capacity": 11,
+      "registered": 0
+    },
+    {
+      "id": "F016",
+      "name": "Tourzilla Jeep Tours (Sunday)",
+      "slot": "11:45",
+      "capacity": 11,
+      "registered": 0
+    },
+    {
+      "id": "G001",
+      "name": "Big Bear Queen (Sat)",
+      "slot": null,
+      "capacity": 50,
+      "registered": 0
+    },
+    {
+      "id": "G002",
+      "name": "Big Bear Queen (Sat)",
+      "slot": null,
+      "capacity": 50,
+      "registered": 0
+    },
+    {
+      "id": "G003",
+      "name": "Big Bear Queen (Sunday)",
+      "slot": null,
+      "capacity": 50,
+      "registered": 0
+    },
+    {
+      "id": "H001",
+      "name": "Eagle Boat",
+      "slot": "10:00",
+      "capacity": 10,
+      "registered": 5
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Organizer — Sign In</title>
+<style>
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f5f1e7;
+       display:flex;min-height:100vh;align-items:center;justify-content:center;padding:18px}
+  .card{background:#fffdf8;border:1px solid #e6dfce;border-radius:18px;padding:28px;max-width:350px;width:100%;
+        text-align:center;box-shadow:0 10px 30px #1f4e3115}
+  .brandlogo{height:84px;width:84px;object-fit:contain;margin:0 auto 12px;display:block}
+  h1{margin:0 0 4px;font-size:1.2rem;color:#1f4e31}
+  p{color:#6f6a5d;font-size:.9rem;margin:0 0 16px}
+  input{width:100%;padding:11px 12px;border:1.5px solid #e6dfce;border-radius:10px;font-size:1rem;box-sizing:border-box}
+  button{width:100%;margin-top:12px;background:#2f6a45;color:#fff;border:0;padding:12px;
+         border-radius:10px;font-weight:700;font-size:1rem;cursor:pointer}
+</style>
+</head>
+<body>
+  <form class="card" method="get" action="/admin">
+    <img class="brandlogo" src="/logo"
+         alt="Friends of Big Bear Valley" onerror="this.style.display='none'">
+    <h1>Organizer Login</h1>
+    <p>Enter the access key to view registrations.</p>
+    <input name="key" type="password" placeholder="Access key" autofocus>
+    <button type="submit">View registrations</button>
+  </form>
+</body>
+</html>

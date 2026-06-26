@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ event.name }} — Booth Sign-Up</title>
+<style>
+  :root{
+    --green:#2f6a45; --green-d:#1f4e31; --bg:#f5f1e7; --card:#fffdf8;
+    --line:#e6dfce; --muted:#6f6a5d; --accent:#c2872f; --full:#b2473a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:#1f261f;line-height:1.45}
+  header{background:linear-gradient(160deg,#2f6a45,#234f2f);color:#fff;padding:16px 18px;
+         display:flex;align-items:center;gap:14px}
+  header .brandlogo{height:56px;width:56px;border-radius:50%;background:#fff;padding:5px;
+                    object-fit:contain;flex:none;box-shadow:0 1px 5px #0004}
+  header h1{margin:0;font-size:1.25rem;line-height:1.2}
+  header p{margin:3px 0 0;opacity:.93;font-size:.88rem}
+  .wrap{max-width:820px;margin:0 auto;padding:16px}
+  .topbar{display:flex;gap:10px;align-items:end;flex-wrap:wrap;background:#fff;border:1px solid var(--line);
+          border-radius:12px;padding:12px 14px;margin-bottom:12px}
+  .topbar .volwrap{flex:1;min-width:180px}
+  .topbar label{margin:0 0 4px}
+  .logout{color:var(--muted);text-decoration:none;font-size:.85rem;font-weight:600;
+          border:1px solid var(--line);padding:9px 12px;border-radius:9px;white-space:nowrap}
+  .filter{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:11px;
+          font-size:1rem;margin:4px 0 6px}
+  .activity{background:var(--card);border:1px solid var(--line);border-radius:14px;
+            margin:12px 0;overflow:hidden}
+  .activity > h2{margin:0;padding:13px 16px;font-size:1.05rem;background:#eef2ea;
+                 border-bottom:1px solid var(--line)}
+  .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+         gap:10px;padding:14px 16px}
+  .slot{border:1.5px solid var(--line);border-radius:11px;padding:11px 12px;cursor:pointer;
+        text-align:left;background:#fff;transition:.12s;display:flex;flex-direction:column;gap:3px}
+  .slot:hover{border-color:var(--green)}
+  .slot.sel{border-color:var(--green);background:#eaf3ec;box-shadow:0 0 0 2px #2e6b3e22}
+  .slot.full{opacity:.55;cursor:not-allowed;background:#f7f4f4}
+  .slot .t{font-weight:700}
+  .slot .left{font-size:.82rem;color:var(--muted)}
+  .slot .left.few{color:var(--accent);font-weight:600}
+  .slot .left.full{color:var(--full);font-weight:700}
+  .nomatch{padding:10px 4px;color:var(--muted)}
+  .form{background:var(--card);border:1px solid var(--line);border-radius:14px;
+        padding:18px 16px;position:sticky;bottom:0;margin-top:18px;
+        box-shadow:0 -6px 18px #0000000d}
+  .form h3{margin:0 0 4px}
+  .picked{font-size:.92rem;color:var(--muted);margin:0 0 12px}
+  .picked b{color:var(--green-d)}
+  label{display:block;font-size:.82rem;font-weight:600;margin:10px 0 4px}
+  input{width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;
+        font-size:1rem}
+  input.req{border-color:#cbb79a}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  button.go{width:100%;margin-top:16px;background:var(--green);color:#fff;border:0;
+            padding:14px;border-radius:11px;font-size:1.05rem;font-weight:700;cursor:pointer}
+  button.go:disabled{background:#9bb3a1;cursor:not-allowed}
+  .err{color:var(--full);font-size:.9rem;margin-top:10px;min-height:1em}
+  .overlay{position:fixed;inset:0;background:#1f261fcc;display:none;align-items:center;
+           justify-content:center;padding:18px;z-index:50}
+  .overlay.on{display:flex}
+  .ticket{background:#fff;border-radius:16px;max-width:420px;width:100%;overflow:hidden}
+  .ticket .top{background:var(--green);color:#fff;padding:20px;text-align:center}
+  .ticket .top .chk{font-size:2.2rem}
+  .ticket .body{padding:20px}
+  .ticket .code{font-size:1.6rem;font-weight:800;letter-spacing:1px;color:var(--green-d);
+                text-align:center;border:2px dashed var(--green);border-radius:12px;
+                padding:12px;margin:6px 0 14px}
+  .ticket dl{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;margin:0}
+  .ticket dt{color:var(--muted);font-size:.9rem}
+  .ticket dd{margin:0;font-weight:600}
+  .sms-note{margin:14px 0 0;font-size:.88rem;padding:10px;border-radius:10px;background:#eef2ea}
+  .ticket button{width:100%;margin-top:16px;padding:13px;border:0;border-radius:11px;
+                 background:var(--green);color:#fff;font-weight:700;font-size:1rem;cursor:pointer}
+  .muted{color:var(--muted);font-size:.85rem}
+</style>
+</head>
+<body>
+<header>
+  <img class="brandlogo" src="/logo"
+       alt="Friends of Big Bear Valley" onerror="this.style.display='none'">
+  <div>
+    <h1>{{ event.name }} — Booth Registration</h1>
+    <p>Friends of Big Bear Valley · {{ event.date }}</p>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="volwrap">
+      <label>Booth volunteer (you)</label>
+      <input id="vol" placeholder="Your name — saved on this laptop">
+    </div>
+    <a class="logout" href="/booth-logout">Log out</a>
+  </div>
+
+  <p class="muted">Find the activity the tourist asked for, pick the time, enter their info, and they'll get a confirmation text. First come, first served.</p>
+  <input class="filter" id="filter" placeholder="🔍 Find an activity — type e.g. kayak, jeep, 2:00">
+  <div id="activities">Loading activities…</div>
+
+  <form class="form" id="form" autocomplete="off">
+    <h3>Tourist details</h3>
+    <p class="picked" id="picked">No time slot selected yet — tap one above.</p>
+    <label>Full name / family name</label>
+    <input id="name" name="name" placeholder="e.g. The Garcia Family" required>
+    <div class="row">
+      <div>
+        <label>Mobile phone (required — confirmation text)</label>
+        <input id="phone" name="phone" class="req" type="tel" inputmode="tel" placeholder="(555) 555-5555" required>
+      </div>
+      <div>
+        <label>Number of spots</label>
+        <input id="party" name="party_size" type="number" min="1" value="1">
+      </div>
+    </div>
+    <label>Email (optional)</label>
+    <input id="email" name="email" type="email" placeholder="optional@email.com">
+    <button class="go" id="go" type="submit" disabled>Select a slot to continue</button>
+    <div class="err" id="err"></div>
+  </form>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="ticket">
+    <div class="top"><div class="chk">✅</div><div>Confirmed!</div></div>
+    <div class="body">
+      <div class="code" id="t-code"></div>
+      <dl>
+        <dt>Name</dt><dd id="t-name"></dd>
+        <dt>Activity</dt><dd id="t-act"></dd>
+        <dt>Time</dt><dd id="t-time"></dd>
+        <dt>Spots</dt><dd id="t-spots"></dd>
+      </dl>
+      <div class="sms-note" id="t-sms"></div>
+      <button id="done">Done — next tourist</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let selected = null;
+let DATA = {groups:[]};
+const $ = id => document.getElementById(id);
+
+// Remember which volunteer is on this laptop.
+const vol = $('vol');
+vol.value = localStorage.getItem('oad_booth_vol') || '';
+vol.addEventListener('input', () => localStorage.setItem('oad_booth_vol', vol.value.trim()));
+
+async function load(){
+  try{
+    DATA = await (await fetch('/api/activities')).json();
+    render();
+  }catch(e){ /* keep showing last good data */ }
+}
+
+function render(){
+  const q = $('filter').value.trim().toLowerCase();
+  const box = $('activities'); box.innerHTML = '';
+  let shown = 0;
+  DATA.groups.forEach(g => {
+    const slots = g.slots.filter(s =>
+      !q || g.name.toLowerCase().includes(q) || (s.slot_label||'').toLowerCase().includes(q));
+    if(!slots.length) return;
+    shown++;
+    const sec = document.createElement('div'); sec.className='activity';
+    const h = document.createElement('h2'); h.textContent = g.name; sec.appendChild(h);
+    const sl = document.createElement('div'); sl.className='slots';
+    slots.forEach(s => {
+      const full = s.spots_left <= 0, few = !full && s.spots_left <= 3;
+      const el = document.createElement('div');
+      el.className = 'slot' + (full?' full':'');
+      el.dataset.id = s.id;
+      el.innerHTML = `<span class="t">${s.slot_label}</span>`+
+        `<span class="left ${full?'full':(few?'few':'')}">`+
+        `${full?'FULL':s.spots_left+' spot'+(s.spots_left==1?'':'s')+' left'}</span>`;
+      if(!full){
+        el.onclick = () => {
+          document.querySelectorAll('.slot.sel').forEach(x=>x.classList.remove('sel'));
+          el.classList.add('sel');
+          selected = {id:s.id, name:g.name, time:s.slot_label, left:s.spots_left};
+          $('picked').innerHTML = `Selected: <b>${g.name}</b> at <b>${s.slot_label}</b> · ${s.spots_left} left`;
+          $('go').disabled = false; $('go').textContent = 'Sign up & send text';
+        };
+      }
+      sl.appendChild(el);
+    });
+    sec.appendChild(sl); box.appendChild(sec);
+  });
+  if(!shown){ box.innerHTML = '<div class="nomatch">No activities match "'+q+'".</div>'; }
+  // Re-apply the current selection highlight after a refresh/filter.
+  if(selected){
+    const m = box.querySelector('.slot[data-id="'+selected.id+'"]');
+    if(m && !m.classList.contains('full')) m.classList.add('sel');
+  }
+}
+
+$('filter').addEventListener('input', render);
+
+$('form').addEventListener('submit', async e => {
+  e.preventDefault(); $('err').textContent='';
+  if(!selected){ $('err').textContent='Please pick a time slot first.'; return; }
+  if(!$('phone').value.trim()){ $('err').textContent='A mobile phone number is required.'; return; }
+  const payload = {
+    name: $('name').value, phone: $('phone').value, email: $('email').value,
+    party_size: $('party').value, slot_id: selected.id,
+    registered_by: vol.value.trim()
+  };
+  $('go').disabled = true; $('go').textContent = 'Submitting…';
+  try{
+    const r = await fetch('/api/signup', {method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+    if(r.status === 401){ $('err').textContent='Session expired — reloading login…';
+      setTimeout(()=>location.reload(), 1200); return; }
+    const d = await r.json();
+    if(!d.ok){ $('err').textContent = d.error || 'Something went wrong.'; await load();
+               $('go').disabled=false; $('go').textContent='Sign up & send text'; return; }
+    showTicket(d);
+  }catch(err){ $('err').textContent = 'Network error — please try again.';
+               $('go').disabled=false; $('go').textContent='Sign up & send text'; }
+});
+
+function showTicket(d){
+  $('t-code').textContent = d.ticket_code;
+  $('t-name').textContent = d.name;
+  $('t-act').textContent  = d.activity_name;
+  $('t-time').textContent = d.slot_label;
+  $('t-spots').textContent= d.party_size;
+  const note = $('t-sms');
+  if(d.sms_status==='sent'){ note.textContent = '📲 Confirmation text sent to the tourist.'; }
+  else if(d.sms_status==='not_configured'){ note.textContent = '📝 Texting isn\'t turned on yet — show this screen as the ticket. (See README to enable Twilio.)'; }
+  else { note.textContent = '⚠️ Couldn\'t send the text, but the signup is saved. Show this screen as the ticket.'; }
+  $('overlay').classList.add('on');
+}
+
+$('done').onclick = () => {
+  $('overlay').classList.remove('on');
+  selected=null; $('name').value=''; $('phone').value=''; $('email').value=''; $('party').value='1';
+  $('go').disabled=true; $('go').textContent='Select a slot to continue';
+  $('picked').textContent='No time slot selected yet — tap one above.';
+  $('err').textContent='';
+  load(); window.scrollTo({top:0,behavior:'smooth'}); $('name').focus();
+};
+
+load();
+// Live capacity sync across all booth laptops. Refresh every 10s, but not while
+// a slot is selected or the ticket is open (so we don't interrupt a signup).
+setInterval(() => {
+  if(!selected && !$('overlay').classList.contains('on')) load();
+}, 10000);
+document.addEventListener('visibilitychange', () => {
+  if(!document.hidden && !selected && !$('overlay').classList.contains('on')) load();
+});
+</script>
+</body>
+</html>

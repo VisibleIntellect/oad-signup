@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manage Activities — {{ event.name }}</title>
+<style>
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f5f1e7;color:#28251f}
+  header{background:#1f4e31;color:#fff;padding:18px 20px;display:flex;justify-content:space-between;
+         align-items:center;flex-wrap:wrap;gap:10px}
+  header h1{margin:0;font-size:1.15rem}
+  .hgroup{display:flex;align-items:center;gap:12px}
+  .hgroup .brandlogo{height:46px;width:46px;border-radius:50%;background:#fff;padding:4px;
+                     object-fit:contain;flex:none}
+  a.back{color:#cfe3d4;text-decoration:none;font-weight:600;font-size:.9rem}
+  .wrap{max-width:1000px;margin:0 auto;padding:18px}
+  .card{background:#fff;border:1px solid #e6dfce;border-radius:13px;padding:16px;margin-bottom:18px}
+  .card h2{margin:0 0 12px;font-size:1rem;color:#1f4e31}
+  .formrow{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+  .f{display:flex;flex-direction:column;gap:4px}
+  .f label{font-size:.74rem;font-weight:700;color:#4b5547;text-transform:uppercase;letter-spacing:.03em}
+  input,select{padding:9px 10px;border:1.5px solid #e6dfce;border-radius:9px;font-size:.95rem}
+  input[type=number]{width:90px}
+  input[type=time]{width:130px}
+  .name{min-width:200px}
+  button{border:0;border-radius:9px;font-weight:700;cursor:pointer;padding:9px 14px;font-size:.9rem}
+  .add{background:#2f6a45;color:#fff}
+  .save{background:#2f6a45;color:#fff}
+  .del{background:#fff;color:#b2473a;border:1.5px solid #e6c7c7}
+  .rename{background:#c2872f;color:#fff}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e6dfce;border-radius:12px;overflow:hidden}
+  th,td{padding:8px 10px;border-bottom:1px solid #eef0ec;text-align:left;font-size:.9rem;vertical-align:middle}
+  th{background:#eef1e6;font-size:.74rem;text-transform:uppercase;letter-spacing:.03em;color:#4b5547}
+  tr:last-child td{border-bottom:0}
+  td input{margin:0}
+  .booked{color:#6f6a5d;text-align:center}
+  .hint{color:#6f6a5d;font-size:.85rem;margin:6px 0 0}
+  .actions{white-space:nowrap;display:flex;gap:6px}
+</style>
+</head>
+<body>
+<header>
+  <div class="hgroup">
+    <img class="brandlogo" src="/logo"
+         alt="Friends of Big Bear Valley" onerror="this.style.display='none'">
+    <h1>Manage Activities — {{ event.name }}</h1>
+  </div>
+  <a class="back" href="/admin?key={{ key }}">← Back to registrations</a>
+</header>
+<div class="wrap">
+
+  <div class="card">
+    <h2>➕ Add a time slot</h2>
+    <div class="formrow">
+      <div class="f"><label>Activity name</label><input id="a-name" class="name" placeholder="e.g. Kayak"></div>
+      <div class="f"><label>Time (blank = no set time)</label><input id="a-slot" type="time"></div>
+      <div class="f"><label>Capacity</label><input id="a-cap" type="number" min="0" value="10"></div>
+      <button class="add" onclick="addSlot()">Add slot</button>
+    </div>
+    <p class="hint">Tip: give it the <b>exact same name</b> as an existing activity to add another time to that activity. A new name creates a new activity.</p>
+  </div>
+
+  <div class="card">
+    <h2>✏️ Rename an activity (updates all its time slots)</h2>
+    <div class="formrow">
+      <div class="f"><label>Existing activity</label>
+        <select id="r-old">
+          {% for n in names %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="f"><label>New name</label><input id="r-new" class="name" placeholder="New name"></div>
+      <button class="rename" onclick="renameAct()">Rename</button>
+    </div>
+    <p class="hint">Use this to merge duplicates — e.g. rename “Kayaks” to “Kayak” so they show as one activity.</p>
+  </div>
+
+  <div class="card">
+    <h2>All time slots ({{ acts|length }})</h2>
+    <table>
+      <tr><th>Activity name</th><th>Time</th><th>Capacity</th><th>Booked</th><th>Actions</th></tr>
+      {% for a in acts %}
+      <tr data-id="{{ a.id }}">
+        <td><input class="name e-name" value="{{ a.name }}"></td>
+        <td><input type="time" class="e-slot" value="{{ a.slot or '' }}"></td>
+        <td><input type="number" min="0" class="e-cap" value="{{ a.capacity }}"></td>
+        <td class="booked">{{ a.registered }}</td>
+        <td class="actions">
+          <button class="save" onclick="saveRow(this)">Save</button>
+          <button class="del" onclick="delRow(this)">Delete</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    <p class="hint">Capacity can’t be set below the number already booked. A slot with bookings can’t be deleted — lower its capacity to the booked number to close it instead.</p>
+  </div>
+
+</div>
+<script>
+const KEY = {{ key|tojson }};
+async function api(path, body){
+  try{
+    const r = await fetch(path+'?key='+encodeURIComponent(KEY), {method:'POST',
+      headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    const d = await r.json().catch(()=>({ok:false,error:'Unexpected server response.'}));
+    return d;
+  }catch(e){ return {ok:false, error:'Network error — please try again.'}; }
+}
+function done(d){ if(d.ok){ location.reload(); } else { alert(d.error || 'Something went wrong.'); } }
+
+async function addSlot(){
+  const name=document.getElementById('a-name').value.trim();
+  if(!name){ alert('Enter an activity name.'); return; }
+  done(await api('/api/admin/add', {name,
+    slot:document.getElementById('a-slot').value,
+    capacity:document.getElementById('a-cap').value}));
+}
+async function renameAct(){
+  const oldn=document.getElementById('r-old').value;
+  const newn=document.getElementById('r-new').value.trim();
+  if(!newn){ alert('Enter the new name.'); return; }
+  if(oldn===newn){ alert('New name is the same as the old one.'); return; }
+  done(await api('/api/admin/rename', {old_name:oldn, new_name:newn}));
+}
+async function saveRow(btn){
+  const tr=btn.closest('tr');
+  done(await api('/api/admin/update', {
+    id:tr.dataset.id,
+    name:tr.querySelector('.e-name').value,
+    slot:tr.querySelector('.e-slot').value,
+    capacity:tr.querySelector('.e-cap').value}));
+}
+async function delRow(btn){
+  const tr=btn.closest('tr');
+  if(!confirm('Delete this time slot?')) return;
+  done(await api('/api/admin/delete', {id:tr.dataset.id}));
+}
+</script>
+</body>
+</html>

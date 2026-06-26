@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Booth Login — {{ event.name }}</title>
+<style>
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f5f1e7;
+       display:flex;min-height:100vh;align-items:center;justify-content:center;padding:18px}
+  .card{background:#fffdf8;border:1px solid #e6dfce;border-radius:18px;padding:28px;max-width:370px;width:100%;
+        text-align:center;box-shadow:0 10px 30px #1f4e3115}
+  .brandlogo{height:92px;width:92px;object-fit:contain;margin:0 auto 12px;display:block}
+  h1{margin:0 0 2px;font-size:1.25rem;color:#1f4e31}
+  .ev{color:#6f6a5d;font-size:.85rem;margin:0 0 18px}
+  p{color:#4b5547;font-size:.92rem;margin:0 0 14px}
+  label{display:block;font-size:.82rem;font-weight:700;margin:0 0 5px;text-align:left}
+  input{width:100%;padding:13px;border:1.5px solid #e6dfce;border-radius:11px;font-size:1.1rem;
+        box-sizing:border-box;text-align:center;letter-spacing:2px}
+  button{width:100%;margin-top:14px;background:#2f6a45;color:#fff;border:0;padding:13px;
+         border-radius:11px;font-weight:700;font-size:1.05rem;cursor:pointer}
+  .err{color:#b2473a;font-size:.9rem;margin-top:12px}
+</style>
+</head>
+<body>
+  <form class="card" method="post" action="/booth-login">
+    <img class="brandlogo" src="/logo"
+         alt="Friends of Big Bear Valley" onerror="this.style.display='none'">
+    <h1>Booth Staff Sign-In</h1>
+    <p class="ev">{{ event.name }} · Registration table</p>
+    <p>Enter the staff PIN to open the sign-up screen for registering tourists.</p>
+    <label>Staff PIN</label>
+    <input name="pin" type="password" inputmode="text" autofocus autocomplete="off" placeholder="••••••">
+    <button type="submit">Open sign-up screen</button>
+    {% if error %}<div class="err">{{ error }}</div>{% endif %}
+  </form>
+</body>
+</html>

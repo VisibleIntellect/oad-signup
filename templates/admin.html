@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Registrations — {{ event.name }}</title>
+<style>
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f5f1e7;color:#28251f}
+  header{background:#1f4e31;color:#fff;padding:18px 20px;display:flex;justify-content:space-between;
+         align-items:center;flex-wrap:wrap;gap:10px}
+  header h1{margin:0;font-size:1.15rem}
+  .hgroup{display:flex;align-items:center;gap:12px}
+  .hgroup .brandlogo{height:46px;width:46px;border-radius:50%;background:#fff;padding:4px;
+                     object-fit:contain;flex:none}
+  .wrap{max-width:1050px;margin:0 auto;padding:18px}
+  .stats{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px}
+  .stat{background:#fff;border:1px solid #e6dfce;border-radius:12px;padding:14px 18px;flex:1;min-width:150px}
+  .stat .n{font-size:1.7rem;font-weight:800;color:#2f6a45}
+  .stat .l{color:#6f6a5d;font-size:.85rem}
+  .btn{background:#c2872f;color:#fff;text-decoration:none;padding:9px 14px;border-radius:9px;font-weight:700;font-size:.9rem}
+  h2{font-size:1rem;margin:18px 0 8px}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e6dfce;border-radius:12px;overflow:hidden}
+  th,td{padding:9px 11px;text-align:left;border-bottom:1px solid #eef0ec;font-size:.9rem}
+  th{background:#eef1e6;font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;color:#4b5547}
+  tr:last-child td{border-bottom:0}
+  .pill{font-size:.72rem;padding:2px 8px;border-radius:20px;font-weight:700}
+  .sent{background:#e3f1e6;color:#2f6a45}.off{background:#eceff0;color:#6f6a5d}
+  .failed{background:#f7e2e2;color:#b2473a}
+  .full{color:#b2473a;font-weight:700}.open{color:#2f6a45}
+  .empty{padding:24px;text-align:center;color:#6f6a5d}
+</style>
+</head>
+<body>
+<header>
+  <div class="hgroup">
+    <img class="brandlogo" src="/logo"
+         alt="Friends of Big Bear Valley" onerror="this.style.display='none'">
+    <h1>{{ event.name }} — Registrations</h1>
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <a class="btn" style="background:#2f6a45" href="/admin/activities?key={{ key }}">⚙ Manage activities</a>
+    <a class="btn" href="/admin/export.csv?key={{ key }}">⬇ Download CSV</a>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="stats">
+    <div class="stat"><div class="n">{{ total_regs }}</div><div class="l">Registrations</div></div>
+    <div class="stat"><div class="n">{{ total_spots }}</div><div class="l">People / spots booked</div></div>
+    <div class="stat"><div class="n">{{ acts|sum(attribute='capacity') - acts|sum(attribute='registered') }}</div><div class="l">Spots still open</div></div>
+  </div>
+
+  <h2>People who signed up</h2>
+  {% if regs %}
+  <table>
+    <tr><th>Ticket</th><th>Name</th><th>Phone</th><th>Email</th><th>Spots</th>
+        <th>Activity</th><th>Time</th><th>Text</th><th>Booth</th><th>When</th></tr>
+    {% for r in regs %}
+    <tr>
+      <td><b>{{ r.ticket_code }}</b></td>
+      <td>{{ r.name }}</td>
+      <td>{{ r.phone or '—' }}</td>
+      <td>{{ r.email or '—' }}</td>
+      <td>{{ r.party_size }}</td>
+      <td>{{ r.activity_name }}</td>
+      <td>{{ pretty_slot(r.slot) }}</td>
+      <td>
+        {% if r.sms_status == 'sent' %}<span class="pill sent">sent</span>
+        {% elif r.sms_status == 'failed' %}<span class="pill failed">failed</span>
+        {% else %}<span class="pill off">on screen</span>{% endif %}
+      </td>
+      <td>{{ r.registered_by or '—' }}</td>
+      <td>{{ r.created_at.replace('T',' ') }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <div class="empty">No registrations yet.</div>
+  {% endif %}
+
+  <h2>Activity capacity</h2>
+  <table>
+    <tr><th>Activity</th><th>Time</th><th>Capacity</th><th>Booked</th><th>Left</th><th>Status</th></tr>
+    {% for a in acts %}
+    <tr>
+      <td>{{ a.name }}</td>
+      <td>{{ pretty_slot(a.slot) }}</td>
+      <td>{{ a.capacity }}</td>
+      <td>{{ a.registered }}</td>
+      <td>{{ a.capacity - a.registered }}</td>
+      <td>{% if a.capacity - a.registered <= 0 %}<span class="full">Full</span>{% else %}<span class="open">Open</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+</body>
+</html>

@@ -1,0 +1,34 @@
+# Render Blueprint — deploys the availability board + sign-up app.
+# This sets up the RECOMMENDED always-on configuration: a Starter web service
+# (no sleeping) with a small persistent disk so your signups are never lost.
+#
+# To use: push this folder to a GitHub repo, then in Render click
+# "New +" -> "Blueprint" and point it at the repo. Render reads this file.
+services:
+  - type: web
+    name: oad-availability
+    runtime: python
+    plan: starter            # always-on (~$7/mo). Change to "free" to test (see README).
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 1 --threads 8 --bind 0.0.0.0:$PORT
+    disk:                    # persistent storage so registrations survive restarts/deploys
+      name: oad-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: DATABASE_FILE
+        value: /var/data/oad.db
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: ADMIN_KEY          # password for the organizer list page
+        sync: false
+      - key: STAFF_PIN          # PIN booth volunteers type to open the sign-up screen
+        sync: false
+      - key: SECRET_KEY         # signs login cookies; Render generates a strong value
+        generateValue: true
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false

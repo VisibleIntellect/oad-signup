@@ -1,0 +1,5 @@
+To use the official Friends of Big Bear Valley logo:
+1. Save the logo image file in THIS folder.
+2. Name it exactly:  logo.png
+That's it -- the app uses it automatically on every page.
+(Until you add it, the app shows a built-in Big Bear emblem instead.)
