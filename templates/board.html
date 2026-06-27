@@ -54,15 +54,17 @@
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
   .legend{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;margin:8px 0 4px;font-size:.85rem;color:var(--muted)}
   .activity{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:14px 0;overflow:hidden}
-  .activity > h2{margin:0;padding:13px 16px;font-size:1.15rem;background:#eef1e6;border-bottom:1px solid var(--line)}
+  .activity > h2{margin:0;padding:13px 16px;font-size:1.15rem;background:#eef1e6;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .act-total{margin-left:auto;font-size:.85rem;font-weight:800;padding:3px 12px;border-radius:20px;color:#fff;white-space:nowrap}
+  .b-open{background:var(--open)} .b-few{background:var(--few)} .b-full{background:var(--full)}
   .activity .loc{padding:9px 16px 0;color:var(--green-d);font-size:.9rem;font-weight:600}
-  .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;padding:14px 16px}
-  .slot{border:1.5px solid var(--line);border-radius:11px;padding:12px;background:#fff;display:flex;flex-direction:column;gap:4px}
+  .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:14px 16px}
+  .slot{border-radius:11px;padding:11px 12px;display:flex;flex-direction:column;gap:4px;border-left:7px solid #ccc}
   .slot .t{font-weight:700;font-size:1.05rem}
-  .slot .left{font-size:.92rem;font-weight:700}
-  .slot.open{border-left:5px solid var(--open)} .slot.open .left{color:var(--open)}
-  .slot.few{border-left:5px solid var(--few)}   .slot.few .left{color:var(--few)}
-  .slot.full{border-left:5px solid var(--full);background:#faf6f6;opacity:.85} .slot.full .left{color:var(--full)}
+  .slot .left{font-size:.92rem;font-weight:800;text-transform:uppercase;letter-spacing:.02em}
+  .slot.open{background:#e3f2e7;border-left-color:var(--open)} .slot.open .left{color:#1f4e31}
+  .slot.few{background:#fbefd9;border-left-color:var(--few)} .slot.few .left{color:#8f5f12}
+  .slot.full{background:#fbe3e0;border-left-color:var(--full)} .slot.full .left{color:#9c3b2e}
   .foot{text-align:center;color:var(--muted);font-size:.9rem;margin:22px 0 8px;padding:0 12px}
   .reserve{text-align:center;background:#eef1e6;border:1px solid #e6dfce;border-radius:10px;
            padding:10px 14px;margin:14px 0 6px;color:var(--green-d);font-weight:600}
@@ -136,7 +138,14 @@ async function load(){
     const box = $('activities'); box.innerHTML='';
     d.groups.forEach(g => {
       const sec=document.createElement('div'); sec.className='activity';
-      const h=document.createElement('h2'); h.textContent=g.name; sec.appendChild(h);
+      const total=g.slots.reduce((a,s)=>a+Math.max(s.spots_left,0),0);
+      let tcls='b-open', ttxt=total+' spots left';
+      if(total<=0){ tcls='b-full'; ttxt='Full'; }
+      else if(total<=6){ tcls='b-few'; }
+      const h=document.createElement('h2');
+      const nm=document.createElement('span'); nm.textContent=g.name; h.appendChild(nm);
+      const bt=document.createElement('span'); bt.className='act-total '+tcls; bt.textContent=ttxt; h.appendChild(bt);
+      sec.appendChild(h);
       if(g.location){ const lo=document.createElement('div'); lo.className='loc'; lo.textContent='📍 '+g.location; sec.appendChild(lo); }
       const sl=document.createElement('div'); sl.className='slots';
       g.slots.forEach(s => {
@@ -144,7 +153,7 @@ async function load(){
         const el=document.createElement('div');
         el.className='slot '+(full?'full':(few?'few':'open'));
         el.innerHTML=`<span class="t">${s.slot_label}</span>`+
-          `<span class="left">${full?'FULL':s.spots_left+' spot'+(s.spots_left==1?'':'s')+' left'}</span>`;
+          `<span class="left">${full?'FULL':s.spots_left+' left'}</span>`;
         sl.appendChild(el);
       });
       sec.appendChild(sl); box.appendChild(sec);
