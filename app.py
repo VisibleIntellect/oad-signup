@@ -20,6 +20,10 @@ import io
 import sqlite3
 import secrets
 import json
+import base64
+import threading
+import urllib.request
+import urllib.error
 from datetime import datetime
 from flask import (
     Flask, request, jsonify, render_template, redirect,
@@ -47,6 +51,17 @@ TWILIO_SID = os.environ.get("TWILIO_ACCOUNT_SID", "").strip()
 TWILIO_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "").strip()
 TWILIO_FROM = os.environ.get("TWILIO_FROM_NUMBER", "").strip()
 DEFAULT_COUNTRY_CODE = os.environ.get("DEFAULT_COUNTRY_CODE", "1")  # US
+
+# === GitHub sync — pushes data/activities.json back to the repo when the
+# curated activity list changes via /admin/activities. The actual push runs
+# in a background thread debounced by GITHUB_SYNC_DEBOUNCE_SECONDS so a burst
+# of edits (e.g. auto-save firing on each blur) becomes ONE commit.
+# Disabled if GITHUB_TOKEN is unset; the admin UI still loads normally.
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "").strip()
+GITHUB_REPO = os.environ.get("GITHUB_REPO", "VisibleIntellect/oad-signup").strip()
+GITHUB_BRANCH = os.environ.get("GITHUB_BRANCH", "main").strip()
+GITHUB_FILE_PATH = os.environ.get("GITHUB_FILE_PATH", "data/activities.json").strip()
+GITHUB_SYNC_DEBOUNCE_SECONDS = int(os.environ.get("GITHUB_SYNC_DEBOUNCE_SECONDS", "10"))
 
 app = Flask(__name__)
 app.secret_key = SECRET_KEY
@@ -496,6 +511,186 @@ def norm_slot(raw):
         return None, "Time must be in 24-hour HH:MM form (e.g. 14:00), or left blank."
 
 
+# ----- GitHub sync ----------------------------------------------------------
+# Background, debounced "push back to GitHub" so the seed activities.json in
+# the repo stays in sync with the curated DB. Triggered from every admin
+# write that touches the curated activity list (add / update / delete /
+# rename). Does NOT fire on registration changes — those are runtime state,
+# not curation, per the requirements.
+_sync_lock = threading.Lock()
+_sync_timer = None  # type: threading.Timer | None
+_sync_state = {
+    "enabled": bool(GITHUB_TOKEN and GITHUB_REPO),
+    "last_change_at": None,          # ISO ts of most recent curated edit
+    "last_sync_attempt_at": None,
+    "last_sync_success_at": None,
+    "last_sync_error": None,         # string when the last push failed
+    "in_flight": False,              # push currently running
+    "pending": False,                # debounce timer scheduled
+}
+
+
+def _build_activities_json():
+    """Snapshot the live DB into the activities.json shape used as the
+    first-boot seed. We never write the runtime registered count — that's
+    transient state, not curation."""
+    db = sqlite3.connect(DB_PATH)
+    db.row_factory = sqlite3.Row
+    rows = db.execute(
+        "SELECT id, name, slot, capacity, location FROM activities ORDER BY sort_order"
+    ).fetchall()
+    db.close()
+    activities = []
+    for r in rows:
+        a = {
+            "id": r["id"],
+            "name": r["name"],
+            "slot": r["slot"],
+            "capacity": int(r["capacity"]),
+            "registered": 0,
+        }
+        if r["location"]:
+            a["location"] = r["location"]
+        activities.append(a)
+    return {"event": EVENT, "activities": activities}
+
+
+def _github_get_current_file():
+    """Returns (sha, parsed_obj_or_None). Raises on any HTTP error."""
+    url = (f"https://api.github.com/repos/{GITHUB_REPO}/contents/"
+           f"{GITHUB_FILE_PATH}?ref={GITHUB_BRANCH}")
+    req = urllib.request.Request(url, headers={
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "fobbv-oad-sync",
+    })
+    with urllib.request.urlopen(req, timeout=20) as r:
+        body = json.loads(r.read())
+    try:
+        parsed = json.loads(base64.b64decode(body["content"]).decode())
+    except Exception:
+        parsed = None
+    return body["sha"], parsed
+
+
+def _github_put_file(content_str, current_sha, commit_message):
+    url = (f"https://api.github.com/repos/{GITHUB_REPO}/contents/"
+           f"{GITHUB_FILE_PATH}")
+    payload = {
+        "message": commit_message,
+        "content": base64.b64encode(content_str.encode()).decode(),
+        "branch": GITHUB_BRANCH,
+        "sha": current_sha,
+    }
+    req = urllib.request.Request(
+        url,
+        method="PUT",
+        data=json.dumps(payload).encode(),
+        headers={
+            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "Content-Type": "application/json",
+            "User-Agent": "fobbv-oad-sync",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=20) as r:
+        return json.loads(r.read())
+
+
+def _run_sync():
+    """Body of the debounce timer. Diffs the live DB against the file on
+    GitHub and pushes ONLY if the curated content actually changed —
+    no empty commits."""
+    global _sync_timer
+    with _sync_lock:
+        _sync_timer = None
+        _sync_state["pending"] = False
+        _sync_state["in_flight"] = True
+        _sync_state["last_sync_attempt_at"] = datetime.now().isoformat(timespec="seconds")
+    try:
+        if not _sync_state["enabled"]:
+            raise RuntimeError("GITHUB_TOKEN not set — sync disabled")
+        local_obj = _build_activities_json()
+        local_str = json.dumps(local_obj, indent=2) + "\n"
+        sha, github_obj = _github_get_current_file()
+        if github_obj == local_obj:
+            with _sync_lock:
+                _sync_state["last_sync_success_at"] = datetime.now().isoformat(timespec="seconds")
+                _sync_state["last_sync_error"] = None
+                _sync_state["in_flight"] = False
+            return
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        msg = f"Sync activities.json from live DB — {ts}"
+        _github_put_file(local_str, sha, msg)
+        with _sync_lock:
+            _sync_state["last_sync_success_at"] = datetime.now().isoformat(timespec="seconds")
+            _sync_state["last_sync_error"] = None
+            _sync_state["in_flight"] = False
+    except urllib.error.HTTPError as e:
+        body = ""
+        try:
+            body = e.read().decode(errors="replace")[:300]
+        except Exception:
+            pass
+        err = f"HTTP {e.code} {e.reason}: {body}"
+        with _sync_lock:
+            _sync_state["last_sync_error"] = err
+            _sync_state["in_flight"] = False
+        app.logger.warning("GitHub sync failed: %s", err)
+    except Exception as e:
+        with _sync_lock:
+            _sync_state["last_sync_error"] = f"{type(e).__name__}: {e}"
+            _sync_state["in_flight"] = False
+        app.logger.warning("GitHub sync failed: %s", e)
+
+
+def schedule_github_sync():
+    """Debounced trigger called by curated-write endpoints. A burst of
+    edits within GITHUB_SYNC_DEBOUNCE_SECONDS becomes ONE GitHub commit."""
+    global _sync_timer
+    now = datetime.now().isoformat(timespec="seconds")
+    with _sync_lock:
+        _sync_state["last_change_at"] = now
+        if not _sync_state["enabled"]:
+            return                        # quiet no-op when no token set
+        _sync_state["pending"] = True
+        if _sync_timer is not None:
+            _sync_timer.cancel()
+        _sync_timer = threading.Timer(GITHUB_SYNC_DEBOUNCE_SECONDS, _run_sync)
+        _sync_timer.daemon = True
+        _sync_timer.start()
+
+
+@app.route("/api/admin/sync_status")
+def admin_sync_status():
+    if not admin_key_ok():
+        return jsonify({"ok": False, "error": "Not authorized."}), 401
+    with _sync_lock:
+        out = dict(_sync_state)
+    out["repo"] = GITHUB_REPO if _sync_state["enabled"] else None
+    out["branch"] = GITHUB_BRANCH
+    out["file"] = GITHUB_FILE_PATH
+    out["debounce_seconds"] = GITHUB_SYNC_DEBOUNCE_SECONDS
+    return jsonify(out)
+
+
+@app.route("/api/admin/sync_now", methods=["POST"])
+def admin_sync_now():
+    """Cancel any debounce and run the sync immediately. Useful for verifying
+    that the token + repo wiring is correct without waiting."""
+    if not admin_key_ok():
+        return jsonify({"ok": False, "error": "Not authorized."}), 401
+    global _sync_timer
+    with _sync_lock:
+        if _sync_timer is not None:
+            _sync_timer.cancel()
+            _sync_timer = None
+    threading.Thread(target=_run_sync, daemon=True).start()
+    return jsonify({"ok": True})
+
+
 @app.route("/admin/activities")
 def manage_page():
     key = request.args.get("key", "")
@@ -535,6 +730,7 @@ def admin_add():
     db.execute("INSERT INTO activities (id,name,slot,capacity,registered,sort_order,location)"
                " VALUES (?,?,?,?,0,?,?)", (new_id, name, slot, capacity, nxt, location))
     db.commit()
+    schedule_github_sync()
     return jsonify({"ok": True})
 
 
@@ -565,6 +761,7 @@ def admin_update():
     db.execute("UPDATE activities SET name=?, slot=?, capacity=?, location=? WHERE id=?",
                (name, slot, capacity, location, slot_id))
     db.commit()
+    schedule_github_sync()
     return jsonify({"ok": True})
 
 
@@ -584,6 +781,7 @@ def admin_delete():
                                  "Set its capacity to the number booked to close it instead."}), 409
     db.execute("DELETE FROM activities WHERE id=?", (slot_id,))
     db.commit()
+    schedule_github_sync()
     return jsonify({"ok": True})
 
 
@@ -601,6 +799,7 @@ def admin_rename():
     # Keep past registration records readable too.
     db.execute("UPDATE registrations SET activity_name=? WHERE activity_name=?", (new, old))
     db.commit()
+    schedule_github_sync()
     return jsonify({"ok": True, "updated": cur.rowcount})
 
 
