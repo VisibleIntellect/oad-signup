@@ -34,6 +34,12 @@
   .abtn.cancel{background:#fff;color:#b2473a;border:1.5px solid #e6c7c7}
   .abtn.moveGo{background:#c2872f;color:#fff}
   .moveSel{font-size:.82rem;padding:4px;border:1.5px solid #e6dfce;border-radius:7px;max-width:180px;margin-right:4px}
+  .tabs{display:flex;gap:4px;margin:4px 0 16px;border-bottom:2px solid #e6dfce;flex-wrap:wrap}
+  .tabbtn{border:0;background:none;padding:10px 18px;font-size:.98rem;font-weight:700;color:#6f6a5d;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px}
+  .tabbtn:hover{color:#1f4e31}
+  .tabbtn.on{color:#1f4e31;border-bottom-color:#2f6a45}
+  .tabbtn .cnt{font-size:.76rem;background:#eef1e6;color:#1f4e31;padding:1px 8px;border-radius:20px;margin-left:7px;font-weight:800}
+  .panel{display:none}.panel.on{display:block}
 </style>
 </head>
 <body>
@@ -56,78 +62,86 @@
     <div class="stat"><div class="n">{{ acts|sum(attribute='capacity') - acts|sum(attribute='registered') }}</div><div class="l">Spots still open</div></div>
   </div>
 
-  <h2>People who signed up</h2>
-  {% if regs %}
-  <table>
-    <tr><th>Ticket</th><th>Name</th><th>Phone</th><th>Email</th><th>Spots</th>
-        <th>Activity</th><th>Time</th><th>Text</th><th>Booth</th><th>When</th><th>Actions</th></tr>
-    {% for r in regs %}
-    <tr data-rid="{{ r.id }}">
-      <td><b>{{ r.ticket_code }}</b></td>
-      <td>{{ r.name }}</td>
-      <td>{{ r.phone or '—' }}</td>
-      <td>{{ r.email or '—' }}</td>
-      <td>{{ r.party_size }}</td>
-      <td>{{ r.activity_name }}</td>
-      <td>{{ pretty_slot(r.slot) }}</td>
-      <td>
-        {% if r.sms_status == 'sent' %}<span class="pill sent">text sent</span>
-        {% elif r.sms_status == 'physical' %}<span class="pill off">physical</span>
-        {% elif r.sms_status == 'failed' %}<span class="pill failed">failed</span>
-        {% else %}<span class="pill off">on screen</span>{% endif %}
-      </td>
-      <td>{{ r.registered_by or '—' }}</td>
-      <td>{{ r.created_at.replace('T',' ') }}</td>
-      <td class="actions">
-        <button class="abtn move" onclick="toggleMove(this)">Move</button>
-        <button class="abtn cancel" onclick="cancelReg(this)">Cancel</button>
-        <span class="mover" style="display:none">
-          <select class="moveSel"></select>
-          <button class="abtn moveGo" onclick="moveReg(this)">Move here</button>
-        </span>
-      </td>
-    </tr>
-    {% endfor %}
-  </table>
-  {% else %}
-  <div class="empty">No registrations yet.</div>
-  {% endif %}
+  <div class="tabs">
+    <button class="tabbtn on" onclick="showTab('cap',this)">Activity Capacity</button>
+    <button class="tabbtn" onclick="showTab('signups',this)">Sign-ups &amp; Waitlist<span class="cnt">{{ total_regs }}</span></button>
+  </div>
 
-  <h2>Waitlist{% if waitlist %} ({{ waitlist|length }}){% endif %}</h2>
-  {% if waitlist %}
-  <table>
-    <tr><th>Name</th><th>Phone</th><th>Spots</th><th>Activity</th><th>Time</th><th>Booth</th><th>When</th><th></th></tr>
-    {% for w in waitlist %}
-    <tr data-wid="{{ w.id }}">
-      <td>{{ w.name }}</td>
-      <td>{{ w.phone or '—' }}</td>
-      <td>{{ w.party_size }}</td>
-      <td>{{ w.activity_name }}</td>
-      <td>{{ pretty_slot(w.slot) }}</td>
-      <td>{{ w.registered_by or '—' }}</td>
-      <td>{{ w.created_at.replace('T',' ') }}</td>
-      <td class="actions"><button class="abtn cancel" onclick="removeWait(this)">Remove</button></td>
-    </tr>
-    {% endfor %}
-  </table>
-  {% else %}
-  <div class="empty">No one on the waitlist.</div>
-  {% endif %}
+  <div class="panel on" id="tab-cap">
+    <table>
+      <tr><th>Activity</th><th>Time</th><th>Capacity</th><th>Booked</th><th>Left</th><th>Status</th></tr>
+      {% for a in acts %}
+      <tr>
+        <td>{{ a.name }}</td>
+        <td>{{ pretty_slot(a.slot) }}</td>
+        <td>{{ a.capacity }}</td>
+        <td>{{ a.registered }}</td>
+        <td>{{ a.capacity - a.registered }}</td>
+        <td>{% if a.capacity - a.registered <= 0 %}<span class="full">Full</span>{% else %}<span class="open">Open</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
 
-  <h2>Activity capacity</h2>
-  <table>
-    <tr><th>Activity</th><th>Time</th><th>Capacity</th><th>Booked</th><th>Left</th><th>Status</th></tr>
-    {% for a in acts %}
-    <tr>
-      <td>{{ a.name }}</td>
-      <td>{{ pretty_slot(a.slot) }}</td>
-      <td>{{ a.capacity }}</td>
-      <td>{{ a.registered }}</td>
-      <td>{{ a.capacity - a.registered }}</td>
-      <td>{% if a.capacity - a.registered <= 0 %}<span class="full">Full</span>{% else %}<span class="open">Open</span>{% endif %}</td>
-    </tr>
-    {% endfor %}
-  </table>
+  <div class="panel" id="tab-signups">
+    <h2>People who signed up</h2>
+    {% if regs %}
+    <table>
+      <tr><th>Ticket</th><th>Name</th><th>Phone</th><th>Email</th><th>Spots</th>
+          <th>Activity</th><th>Time</th><th>Text</th><th>Booth</th><th>When</th><th>Actions</th></tr>
+      {% for r in regs %}
+      <tr data-rid="{{ r.id }}">
+        <td><b>{{ r.ticket_code }}</b></td>
+        <td>{{ r.name }}</td>
+        <td>{{ r.phone or '—' }}</td>
+        <td>{{ r.email or '—' }}</td>
+        <td>{{ r.party_size }}</td>
+        <td>{{ r.activity_name }}</td>
+        <td>{{ pretty_slot(r.slot) }}</td>
+        <td>
+          {% if r.sms_status == 'sent' %}<span class="pill sent">text sent</span>
+          {% elif r.sms_status == 'physical' %}<span class="pill off">physical</span>
+          {% elif r.sms_status == 'failed' %}<span class="pill failed">failed</span>
+          {% else %}<span class="pill off">on screen</span>{% endif %}
+        </td>
+        <td>{{ r.registered_by or '—' }}</td>
+        <td>{{ r.created_at.replace('T',' ') }}</td>
+        <td class="actions">
+          <button class="abtn move" onclick="toggleMove(this)">Move</button>
+          <button class="abtn cancel" onclick="cancelReg(this)">Cancel</button>
+          <span class="mover" style="display:none">
+            <select class="moveSel"></select>
+            <button class="abtn moveGo" onclick="moveReg(this)">Move here</button>
+          </span>
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">No registrations yet.</div>
+    {% endif %}
+
+    <h2>Waitlist{% if waitlist %} ({{ waitlist|length }}){% endif %}</h2>
+    {% if waitlist %}
+    <table>
+      <tr><th>Name</th><th>Phone</th><th>Spots</th><th>Activity</th><th>Time</th><th>Booth</th><th>When</th><th></th></tr>
+      {% for w in waitlist %}
+      <tr data-wid="{{ w.id }}">
+        <td>{{ w.name }}</td>
+        <td>{{ w.phone or '—' }}</td>
+        <td>{{ w.party_size }}</td>
+        <td>{{ w.activity_name }}</td>
+        <td>{{ pretty_slot(w.slot) }}</td>
+        <td>{{ w.registered_by or '—' }}</td>
+        <td>{{ w.created_at.replace('T',' ') }}</td>
+        <td class="actions"><button class="abtn cancel" onclick="removeWait(this)">Remove</button></td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">No one on the waitlist.</div>
+    {% endif %}
+  </div>
 </div>
 <script>
 const KEY = {{ key|tojson }};
@@ -161,6 +175,11 @@ async function removeWait(btn){
   const tr = btn.closest('tr');
   if(!confirm('Remove this person from the waitlist?')) return;
   done(await api('/api/admin/waitlist_remove', {id: Number(tr.dataset.wid)}));
+}
+function showTab(t, btn){
+  ['cap','signups'].forEach(x => document.getElementById('tab-'+x).classList.toggle('on', x===t));
+  document.querySelectorAll('.tabbtn').forEach(b => b.classList.remove('on'));
+  btn.classList.add('on');
 }
 </script>
 </body>
