@@ -35,7 +35,15 @@
   td input{margin:0}
   .booked{color:#6f6a5d;text-align:center}
   .hint{color:#6f6a5d;font-size:.85rem;margin:6px 0 0}
-  .actions{white-space:nowrap;display:flex;gap:6px}
+  .actions{white-space:nowrap;display:flex;gap:6px;align-items:center}
+  .row-status{display:inline-block;font-size:.82rem;font-weight:700;
+    padding:4px 9px;border-radius:6px;margin-left:4px;
+    transition:opacity .6s ease;opacity:0;white-space:nowrap;
+    vertical-align:middle}
+  .row-status.show{opacity:1}
+  .row-status.saving{background:#eef1e6;color:#4b5547}
+  .row-status.saved{background:#dcebdf;color:#1f4e31}
+  .row-status.error{background:#f7d8d4;color:#922929}
 </style>
 </head>
 <body>
@@ -124,20 +132,57 @@ async function renameAct(){
   if(oldn===newn){ alert('New name is the same as the old one.'); return; }
   done(await api('/api/admin/rename', {old_name:oldn, new_name:newn}));
 }
-async function saveRow(btn){
-  const tr=btn.closest('tr');
-  done(await api('/api/admin/update', {
+function setStatus(tr, kind, text){
+  let el=tr.querySelector('.row-status');
+  if(!el){
+    el=document.createElement('span');
+    el.className='row-status';
+    tr.querySelector('.actions').appendChild(el);
+  }
+  el.className='row-status show '+kind;
+  el.textContent=text;
+  if(el._fade){ clearTimeout(el._fade); el._fade=null; }
+  if(kind==='saved'){
+    el._fade=setTimeout(()=>el.classList.remove('show'), 1800);
+  }
+}
+async function saveRowFields(tr){
+  setStatus(tr,'saving','Saving…');
+  const d=await api('/api/admin/update', {
     id:tr.dataset.id,
     name:tr.querySelector('.e-name').value,
     slot:tr.querySelector('.e-slot').value,
     capacity:tr.querySelector('.e-cap').value,
-    location:tr.querySelector('.e-loc').value}));
+    location:tr.querySelector('.e-loc').value});
+  if(d.ok){
+    tr.querySelectorAll('.e-name, .e-slot, .e-cap, .e-loc').forEach(i=> i.dataset.orig=i.value);
+    setStatus(tr,'saved','✓ Saved');
+    return true;
+  }
+  setStatus(tr,'error','⚠ '+(d.error||'Save failed'));
+  return false;
 }
+// Explicit Save button still works — uses the same inline-confirmation path.
+async function saveRow(btn){ await saveRowFields(btn.closest('tr')); }
+
 async function delRow(btn){
   const tr=btn.closest('tr');
   if(!confirm('Delete this time slot?')) return;
   done(await api('/api/admin/delete', {id:tr.dataset.id}));
 }
+
+// Auto-save: text inputs save on blur, number/time on change.
+// We only POST if the value actually changed since the last successful save.
+document.querySelectorAll('tr[data-id]').forEach(tr => {
+  tr.querySelectorAll('.e-name, .e-slot, .e-cap, .e-loc').forEach(input => {
+    input.dataset.orig = input.value;
+    const evt = (input.type === 'number' || input.type === 'time') ? 'change' : 'blur';
+    input.addEventListener(evt, () => {
+      if(input.value === (input.dataset.orig ?? '')) return;
+      saveRowFields(tr);
+    });
+  });
+});
 </script>
 </body>
 </html>
