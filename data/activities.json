@@ -1,8 +1,8 @@
 {
   "event": {
-    "name": "Outdoor Adventure Day (OAD) 2026",
     "date": "July 11, 2026",
     "location": "Christmas Tree Lot, Big Bear Lake",
+    "name": "Outdoor Adventure Day (OAD) 2026",
     "org": "Friends of Big Bear Valley (FOBBV)"
   },
   "activities": [
@@ -63,99 +63,50 @@
       "registered": 0
     },
     {
-      "id": "B001",
-      "name": "watersports",
-      "slot": "10:00",
-      "capacity": 50,
-      "registered": 0
-    },
-    {
       "id": "B002",
-      "name": "watersports",
+      "name": "Big Bear Water Park",
       "slot": "14:00",
       "capacity": 50,
-      "registered": 0
-    },
-    {
-      "id": "C001",
-      "name": "Kayaks",
-      "slot": "10:00",
-      "capacity": 10,
-      "registered": 0
-    },
-    {
-      "id": "C002",
-      "name": "Kayaks",
-      "slot": "11:00",
-      "capacity": 10,
-      "registered": 0
-    },
-    {
-      "id": "C003",
-      "name": "Kayaks",
-      "slot": "12:00",
-      "capacity": 10,
-      "registered": 0
-    },
-    {
-      "id": "C004",
-      "name": "Kayaks",
-      "slot": "13:00",
-      "capacity": 10,
-      "registered": 0
-    },
-    {
-      "id": "C005",
-      "name": "Kayaks",
-      "slot": "14:00",
-      "capacity": 10,
-      "registered": 0
-    },
-    {
-      "id": "C006",
-      "name": "Kayaks",
-      "slot": "15:00",
-      "capacity": 10,
       "registered": 0
     },
     {
       "id": "D001",
-      "name": "SUP",
+      "name": "Stand-Up Paddle Board",
       "slot": "10:00",
       "capacity": 5,
       "registered": 0
     },
     {
       "id": "D002",
-      "name": "SUP",
+      "name": "Stand-Up Paddle Board",
       "slot": "11:00",
       "capacity": 5,
       "registered": 0
     },
     {
       "id": "D003",
-      "name": "SUP",
+      "name": "Stand-Up Paddle Board",
       "slot": "12:00",
       "capacity": 5,
       "registered": 0
     },
     {
       "id": "D004",
-      "name": "SUP",
+      "name": "Stand-Up Paddle Board",
       "slot": "13:00",
       "capacity": 5,
       "registered": 0
     },
     {
       "id": "D005",
-      "name": "SUP",
+      "name": "Stand-Up Paddle Board",
       "slot": "14:00",
       "capacity": 5,
       "registered": 0
     },
     {
       "id": "D006",
-      "name": "SUP",
+      "name": "Stand-Up Paddle Board",
       "slot": "15:00",
       "capacity": 5,
       "registered": 0
@@ -196,92 +147,85 @@
       "registered": 0
     },
     {
-      "id": "E006",
-      "name": "Bike",
-      "slot": "17:00",
-      "capacity": 6,
-      "registered": 0
-    },
-    {
       "id": "F001",
-      "name": "Tourzilla Jeep Tours (sAt)",
+      "name": "Tourzilla Jeep Tour (Saturday)",
       "slot": "09:30",
       "capacity": 11,
       "registered": 0
     },
     {
       "id": "F002",
-      "name": "Tourzilla Jeep Tours (sAt)",
+      "name": "Tourzilla Jeep Tour (Saturday)",
       "slot": "10:15",
       "capacity": 11,
       "registered": 0
     },
     {
       "id": "F003",
-      "name": "Tourzilla Jeep Tours (sAt)",
+      "name": "Tourzilla Jeep Tour (Saturday)",
       "slot": "11:00",
       "capacity": 11,
       "registered": 0
     },
     {
       "id": "F004",
-      "name": "Tourzilla Jeep Tours (sAt)",
+      "name": "Tourzilla Jeep Tour (Saturday)",
       "slot": "11:45",
       "capacity": 11,
       "registered": 0
     },
     {
       "id": "F005",
-      "name": "Tourzilla Jeep Tours (sAt)",
+      "name": "Tourzilla Jeep Tour (Saturday)",
       "slot": "12:30",
       "capacity": 11,
       "registered": 0
     },
     {
       "id": "F006",
-      "name": "Tourzilla Jeep Tours (sAt)",
+      "name": "Tourzilla Jeep Tour (Saturday)",
       "slot": "13:00",
       "capacity": 11,
       "registered": 0
     },
     {
       "id": "F007",
-      "name": "Tourzilla Jeep Tours (sAt)",
+      "name": "Tourzilla Jeep Tour (Saturday)",
       "slot": "01:45",
       "capacity": 11,
       "registered": 0
     },
     {
       "id": "F008",
-      "name": "Tourzilla Jeep Tours (sAt)",
+      "name": "Tourzilla Jeep Tour (Saturday)",
       "slot": "02:30",
       "capacity": 11,
       "registered": 0
     },
     {
       "id": "F009",
-      "name": "Tourzilla Jeep Tours (sAt)",
+      "name": "Tourzilla Jeep Tour (Saturday)",
       "slot": "03:15",
       "capacity": 11,
       "registered": 0
     },
     {
       "id": "F010",
-      "name": "Tourzilla Jeep Tours (sAt)",
+      "name": "Tourzilla Jeep Tour (Saturday)",
       "slot": "16:00",
       "capacity": 11,
       "registered": 0
     },
     {
       "id": "F011",
-      "name": "Tourzilla Jeep Tours (sAt)",
+      "name": "Tourzilla Jeep Tour (Saturday)",
       "slot": "04:45",
       "capacity": 11,
       "registered": 0
     },
     {
       "id": "F012",
-      "name": "Tourzilla Jeep Tours (sAt)",
+      "name": "Tourzilla Jeep Tour (Saturday)",
       "slot": "05:30",
       "capacity": 11,
       "registered": 0
@@ -315,31 +259,105 @@
       "registered": 0
     },
     {
-      "id": "G001",
-      "name": "Big Bear Queen (Sat)",
-      "slot": null,
-      "capacity": 50,
-      "registered": 0
-    },
-    {
-      "id": "G002",
-      "name": "Big Bear Queen (Sat)",
-      "slot": null,
-      "capacity": 50,
-      "registered": 0
-    },
-    {
-      "id": "G003",
-      "name": "Big Bear Queen (Sunday)",
-      "slot": null,
-      "capacity": 50,
-      "registered": 0
-    },
-    {
       "id": "H001",
-      "name": "Eagle Boat",
+      "name": "Bird Watching Boat",
       "slot": "10:00",
       "capacity": 10,
+      "registered": 0,
+      "location": "Big Bear Marina"
+    },
+    {
+      "id": "UEC7F5F",
+      "name": "Bird Watching Boat",
+      "slot": "11:00",
+      "capacity": 10,
+      "registered": 0,
+      "location": "Big Bear Marina"
+    },
+    {
+      "id": "UBEE109",
+      "name": "Bird Watching Boat",
+      "slot": "12:00",
+      "capacity": 20,
+      "registered": 0,
+      "location": "Big Bear Marina"
+    },
+    {
+      "id": "U61072C",
+      "name": "Bird Watching Boat",
+      "slot": "14:00",
+      "capacity": 20,
+      "registered": 0,
+      "location": "Big Bear Marina"
+    },
+    {
+      "id": "UE99526",
+      "name": "Bird Watching Boat",
+      "slot": "15:00",
+      "capacity": 20,
+      "registered": 0,
+      "location": "Big Bear Marina"
+    },
+    {
+      "id": "U1FAB14",
+      "name": "Bird Watching Boat",
+      "slot": "16:00",
+      "capacity": 20,
+      "registered": 0,
+      "location": "Big Bear Marina"
+    },
+    {
+      "id": "U815E11",
+      "name": "Bird Watching Boat",
+      "slot": "13:00",
+      "capacity": 10,
+      "registered": 0,
+      "location": "Big Bear Marina"
+    },
+    {
+      "id": "UD14DF7",
+      "name": "Bird Watching Boat",
+      "slot": "17:00",
+      "capacity": 10,
+      "registered": 0,
+      "location": "Big Bear Marina"
+    },
+    {
+      "id": "UB37A2B",
+      "name": "Boat Cruise",
+      "slot": "15:30",
+      "capacity": 25,
+      "registered": 0,
+      "location": "Big Bear Marina"
+    },
+    {
+      "id": "U6B8781",
+      "name": "Boat Cruise",
+      "slot": "17:30",
+      "capacity": 25,
+      "registered": 0,
+      "location": "Big Bear Marina"
+    },
+    {
+      "id": "U243E60",
+      "name": "Bluff Lake Guided Hike",
+      "slot": "13:39",
+      "capacity": 100,
+      "registered": 0,
+      "location": "Aspen Glen Picnic Area"
+    },
+    {
+      "id": "U0EE742",
+      "name": "Big Bear Queen (Saturday)",
+      "slot": "10:00",
+      "capacity": 50,
+      "registered": 0
+    },
+    {
+      "id": "UB99240",
+      "name": "Big Bear Queen (Sunday)",
+      "slot": "09:00",
+      "capacity": 50,
       "registered": 0
     }
   ]
