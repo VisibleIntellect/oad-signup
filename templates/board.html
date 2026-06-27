@@ -64,6 +64,8 @@
   .slot.few{border-left:5px solid var(--few)}   .slot.few .left{color:var(--few)}
   .slot.full{border-left:5px solid var(--full);background:#faf6f6;opacity:.85} .slot.full .left{color:var(--full)}
   .foot{text-align:center;color:var(--muted);font-size:.9rem;margin:22px 0 8px;padding:0 12px}
+  .reserve{text-align:center;background:#eef1e6;border:1px solid #e6dfce;border-radius:10px;
+           padding:10px 14px;margin:14px 0 6px;color:var(--green-d);font-weight:600}
   @media (max-width:780px){
     .topbar{justify-content:center;gap:8px}
     .tb-logo{height:48px}
@@ -116,6 +118,7 @@
 </header>
 
 <div class="wrap">
+  <div class="reserve">To reserve a spot, see a Friends of Big Bear Valley volunteer at the registration table.</div>
   <div class="updated"><span class="dot"></span>Updates automatically · <span id="ts">loading…</span></div>
   <div class="legend">
     <span><b style="color:var(--open)">●</b> Open</span>
@@ -123,7 +126,6 @@
     <span><b style="color:var(--full)">●</b> Full</span>
   </div>
   <div id="activities">Loading…</div>
-  <div class="foot">To reserve a spot, see a Friends of Big Bear Valley volunteer at the registration table.</div>
 </div>
 
 <script>
