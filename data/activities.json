@@ -11,7 +11,7 @@
       "name": "Kayak",
       "slot": "10:00",
       "capacity": 10,
-      "registered": 10
+      "registered": 0
     },
     {
       "id": "A002",
@@ -67,7 +67,7 @@
       "name": "watersports",
       "slot": "10:00",
       "capacity": 50,
-      "registered": 5
+      "registered": 0
     },
     {
       "id": "B002",
@@ -165,7 +165,7 @@
       "name": "Bike",
       "slot": "09:30",
       "capacity": 6,
-      "registered": 3
+      "registered": 0
     },
     {
       "id": "E002",
@@ -340,7 +340,7 @@
       "name": "Eagle Boat",
       "slot": "10:00",
       "capacity": 10,
-      "registered": 5
+      "registered": 0
     }
   ]
 }
