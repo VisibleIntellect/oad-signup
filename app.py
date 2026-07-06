@@ -22,8 +22,10 @@ import secrets
 import json
 import base64
 import threading
+import smtplib
 import urllib.request
 import urllib.error
+from email.message import EmailMessage
 from datetime import datetime
 from flask import (
     Flask, request, jsonify, render_template, redirect,
@@ -51,6 +53,20 @@ TWILIO_SID = os.environ.get("TWILIO_ACCOUNT_SID", "").strip()
 TWILIO_TOKEN = os.environ.get("TWILIO_AUTH_TOKEN", "").strip()
 TWILIO_FROM = os.environ.get("TWILIO_FROM_NUMBER", "").strip()
 DEFAULT_COUNTRY_CODE = os.environ.get("DEFAULT_COUNTRY_CODE", "1")  # US
+
+# Public base URL (used to build absolute ticket links + QR codes). If unset we
+# derive it from the incoming request and force https for the hosted site.
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "").strip().rstrip("/")
+
+# Email (optional) — sends a ticket to participants who give an email address.
+# Works with any SMTP provider (Gmail app password, SendGrid, Mailgun, etc.).
+# If these are unset the app simply skips email, same as Twilio.
+SMTP_HOST = os.environ.get("SMTP_HOST", "").strip()
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587") or "587")
+SMTP_USER = os.environ.get("SMTP_USER", "").strip()
+SMTP_PASS = os.environ.get("SMTP_PASS", "").strip()
+EMAIL_FROM = (os.environ.get("EMAIL_FROM", "") or SMTP_USER).strip()
+EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Friends of Big Bear Valley").strip()
 
 # === GitHub sync — pushes data/activities.json back to the repo when the
 # curated activity list changes via /admin/activities. The actual push runs
@@ -237,6 +253,94 @@ def send_sms(to_phone, body):
         return "failed"
 
 
+def base_url():
+    """Absolute site root, e.g. https://oad-availability.onrender.com — used to
+    build ticket links and QR codes. Prefers PUBLIC_BASE_URL, else derives from
+    the request and upgrades http->https for the hosted site."""
+    if PUBLIC_BASE_URL:
+        return PUBLIC_BASE_URL
+    root = request.host_url.rstrip("/")
+    if root.startswith("http://") and not any(
+        h in root for h in ("localhost", "127.0.0.1", "0.0.0.0")
+    ):
+        root = "https://" + root[len("http://"):]
+    return root
+
+
+def ticket_url(code):
+    return f"{base_url()}/t/{code}"
+
+
+def build_ticket_email(name, activity_name, slot, party_size, code, turl):
+    """Returns (plain_text, html) for a ticket confirmation email."""
+    when = f"{activity_name} @ {pretty_slot(slot)}"
+    text = (
+        f"You're confirmed for {EVENT['name']}!\n\n"
+        f"Name: {name}\n"
+        f"Activity: {when}\n"
+        f"Spots: {party_size}\n"
+        f"Ticket: {code}\n"
+        f"{EVENT['date']} - {EVENT['location']}\n\n"
+        f"View or show your ticket: {turl}\n\n"
+        f"Show your ticket (this email or the link) at the activity. See you there!\n"
+        f"— Friends of Big Bear Valley"
+    )
+    html = (
+        "<div style=\"font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;"
+        "max-width:460px;margin:0 auto;border:1px solid #e6dfce;border-radius:14px;overflow:hidden\">"
+        "<div style=\"background:linear-gradient(160deg,#2f6a45,#1f4e31);color:#fff;padding:18px 20px;text-align:center\">"
+        "<div style=\"font-size:.8rem;letter-spacing:.05em;text-transform:uppercase;opacity:.9\">Friends of Big Bear Valley</div>"
+        f"<div style=\"font-size:1.25rem;font-weight:700;margin-top:2px\">{EVENT['name']}</div>"
+        "<div style=\"margin-top:4px\">You're confirmed!</div></div>"
+        "<div style=\"padding:20px\">"
+        f"<div style=\"text-align:center;font-size:1.5rem;font-weight:800;letter-spacing:1px;color:#1f4e31;"
+        f"border:2px dashed #2f6a45;border-radius:12px;padding:12px;margin-bottom:16px\">{code}</div>"
+        "<table style=\"width:100%;border-collapse:collapse;font-size:.95rem\">"
+        f"<tr><td style=\"color:#6f6a5d;padding:4px 0\">Name</td><td style=\"font-weight:600;text-align:right\">{name}</td></tr>"
+        f"<tr><td style=\"color:#6f6a5d;padding:4px 0\">Activity</td><td style=\"font-weight:600;text-align:right\">{when}</td></tr>"
+        f"<tr><td style=\"color:#6f6a5d;padding:4px 0\">Spots</td><td style=\"font-weight:600;text-align:right\">{party_size}</td></tr>"
+        f"<tr><td style=\"color:#6f6a5d;padding:4px 0\">When</td><td style=\"font-weight:600;text-align:right\">{EVENT['date']}</td></tr>"
+        f"<tr><td style=\"color:#6f6a5d;padding:4px 0\">Where</td><td style=\"font-weight:600;text-align:right\">{EVENT['location']}</td></tr>"
+        "</table>"
+        f"<div style=\"text-align:center;margin-top:18px\"><a href=\"{turl}\" "
+        "style=\"display:inline-block;background:#2f6a45;color:#fff;text-decoration:none;padding:11px 20px;"
+        "border-radius:10px;font-weight:700\">View your ticket</a></div>"
+        "<p style=\"color:#6f6a5d;font-size:.85rem;text-align:center;margin:16px 0 0\">"
+        "Show this email or your ticket link at the activity. See you there!</p>"
+        "</div></div>"
+    )
+    return text, html
+
+
+def send_email(to_addr, subject, text_body, html_body=None):
+    """Best-effort SMTP send. Returns a status string, never raises."""
+    if not (SMTP_HOST and SMTP_USER and SMTP_PASS and EMAIL_FROM):
+        return "email_not_configured"
+    if not to_addr:
+        return "no_email"
+    try:
+        msg = EmailMessage()
+        msg["Subject"] = subject
+        msg["From"] = f"{EMAIL_FROM_NAME} <{EMAIL_FROM}>"
+        msg["To"] = to_addr
+        msg.set_content(text_body)
+        if html_body:
+            msg.add_alternative(html_body, subtype="html")
+        if SMTP_PORT == 465:
+            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=15) as s:
+                s.login(SMTP_USER, SMTP_PASS)
+                s.send_message(msg)
+        else:
+            with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as s:
+                s.starttls()
+                s.login(SMTP_USER, SMTP_PASS)
+                s.send_message(msg)
+        return "sent"
+    except Exception as e:
+        app.logger.warning("Email send failed: %s", e)
+        return "failed"
+
+
 def require_admin():
     key = request.args.get("key") or request.form.get("key")
     if key != ADMIN_KEY:
@@ -255,6 +359,55 @@ def board():
 @app.route("/logo")
 def logo():
     return _logo_response()
+
+
+@app.route("/t/<code>")
+def ticket_page(code):
+    """Public, branded ticket a participant can pull up on their own phone
+    (the QR-code target from the booth screen). Shows only their own booking."""
+    db = get_db()
+    r = db.execute(
+        "SELECT * FROM registrations WHERE ticket_code=?", (code,)
+    ).fetchone()
+    if not r:
+        resp = _policy_page(
+            "Ticket not found",
+            "<p>Sorry, we couldn't find that ticket. Please double-check the link, "
+            "or see a Friends of Big Bear Valley volunteer at the registration table.</p>",
+        )
+        resp.status_code = 404
+        return resp
+    loc_row = db.execute(
+        "SELECT location FROM activities WHERE id=?", (r["activity_id"],)
+    ).fetchone()
+    loc = loc_row["location"] if loc_row else None
+    return render_template(
+        "ticket.html", event=EVENT, r=r, loc=loc, pretty_slot=pretty_slot
+    )
+
+
+@app.route("/ticketqr/<code>.svg")
+def ticket_qr(code):
+    """SVG QR code encoding the participant's ticket URL. SVG output keeps this
+    dependency-light (no Pillow needed)."""
+    url = ticket_url(code)
+    try:
+        import qrcode
+        import qrcode.image.svg
+        qr = qrcode.QRCode(box_size=10, border=2)
+        qr.add_data(url)
+        qr.make(fit=True)
+        img = qr.make_image(image_factory=qrcode.image.svg.SvgPathImage)
+        buf = io.BytesIO()
+        img.save(buf)
+        svg = buf.getvalue().decode("utf-8")
+    except Exception as e:
+        app.logger.warning("QR generation failed: %s", e)
+        svg = ("<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'>"
+               "</svg>")
+    resp = Response(svg, mimetype="image/svg+xml")
+    resp.headers["Cache-Control"] = "public, max-age=3600"
+    return resp
 
 
 # ----- SMS compliance pages (for Twilio A2P 10DLC registration) -------------
@@ -466,15 +619,30 @@ def api_signup():
     )
     db.commit()
 
+    turl = ticket_url(code)
+
+    # If they gave an email, send them a ticket too (best-effort, non-blocking
+    # to the signup — the QR/on-screen ticket is always available regardless).
+    email_status = None
+    if email:
+        etext, ehtml = build_ticket_email(
+            name, act["name"], act["slot"], party_size, code, turl
+        )
+        email_status = send_email(
+            email, f"Your {EVENT['name']} ticket — {act['name']}", etext, ehtml
+        )
+
     return jsonify({
         "ok": True,
         "ticket_code": code,
+        "ticket_url": turl,
         "name": name,
         "activity_name": act["name"],
         "slot_label": pretty_slot(act["slot"]),
         "party_size": party_size,
         "message": body,
         "sms_status": sms_status,
+        "email_status": email_status,
         "event": EVENT,
     })
 
