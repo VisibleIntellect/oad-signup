@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your Ticket — {{ event.name }}</title>
+<style>
+  :root{--green:#2f6a45;--green-d:#1f4e31;--bg:#f5f1e7;--line:#e6dfce;--muted:#6f6a5d}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:#1f261f;line-height:1.5}
+  .wrap{max-width:440px;margin:0 auto;padding:18px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;
+        box-shadow:0 6px 22px #0000000f}
+  .top{background:linear-gradient(160deg,#2f6a45,#1f4e31);color:#fff;padding:22px 20px;text-align:center}
+  .top .org{font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;opacity:.9}
+  .top .ev{font-size:1.3rem;font-weight:800;margin-top:2px}
+  .top .cf{margin-top:6px;font-size:.95rem;opacity:.95}
+  .brandlogo{height:54px;width:54px;border-radius:50%;background:#fff;padding:5px;
+             object-fit:contain;margin-bottom:8px}
+  .body{padding:22px 20px}
+  .code{text-align:center;font-size:1.7rem;font-weight:800;letter-spacing:1px;color:var(--green-d);
+        border:2px dashed var(--green);border-radius:12px;padding:14px;margin:0 0 18px}
+  dl{display:grid;grid-template-columns:auto 1fr;gap:9px 16px;margin:0}
+  dt{color:var(--muted);font-size:.9rem}
+  dd{margin:0;font-weight:600;text-align:right}
+  .note{margin:18px 0 0;font-size:.9rem;color:var(--muted);text-align:center;
+        background:#eef2ea;border-radius:10px;padding:12px}
+  .foot{text-align:center;color:var(--muted);font-size:.8rem;margin:16px 0 0}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="top">
+        <img class="brandlogo" src="/logo" alt="Friends of Big Bear Valley"
+             onerror="this.style.display='none'">
+        <div class="org">Friends of Big Bear Valley</div>
+        <div class="ev">{{ event.name }}</div>
+        <div class="cf">✅ You're confirmed!</div>
+      </div>
+      <div class="body">
+        <div class="code">{{ r['ticket_code'] }}</div>
+        <dl>
+          <dt>Name</dt><dd>{{ r['name'] }}</dd>
+          <dt>Activity</dt><dd>{{ r['activity_name'] }}</dd>
+          <dt>Time</dt><dd>{{ pretty_slot(r['slot']) }}</dd>
+          <dt>Spots</dt><dd>{{ r['party_size'] }}</dd>
+          {% if loc %}<dt>Meet at</dt><dd>{{ loc }}</dd>{% endif %}
+          <dt>Date</dt><dd>{{ event.date }}</dd>
+          <dt>Where</dt><dd>{{ event.location }}</dd>
+        </dl>
+        <div class="note">Show this screen at the activity. See you there!</div>
+      </div>
+    </div>
+    <div class="foot">Friends of Big Bear Valley · {{ event.date }}</div>
+  </div>
+</body>
+</html>

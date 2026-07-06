@@ -102,7 +102,7 @@
     <a class="logout" href="/booth-logout">Log out</a>
   </div>
 
-  <p class="muted">Find the activity the participant asked for, pick the time, enter their info, and they'll get a confirmation text. First come, first served.</p>
+  <p class="muted">Find the activity the participant asked for, pick the time, enter their info, then have them scan the QR code to save their ticket (plus text/email if set up). First come, first served.</p>
   <input class="filter" id="filter" placeholder="🔍 Find an activity — type e.g. kayak, jeep, 2:00">
   <div id="activities">Loading activities…</div>
 
@@ -139,6 +139,13 @@
     <div class="top"><div class="chk">✅</div><div>Confirmed!</div></div>
     <div class="body">
       <div class="code" id="t-code"></div>
+      <div id="t-qrwrap" style="text-align:center;margin:0 0 16px">
+        <img id="t-qr" alt="Ticket QR code" width="180" height="180"
+             style="width:180px;height:180px;border:1px solid var(--line);border-radius:12px;padding:8px;background:#fff">
+        <div style="margin-top:7px;font-weight:700;color:var(--green-d)">📷 Have them scan to save their ticket</div>
+        <a id="t-link" target="_blank" rel="noopener"
+           style="display:inline-block;margin-top:4px;font-size:.78rem;color:var(--muted);word-break:break-all"></a>
+      </div>
       <dl>
         <dt>Name</dt><dd id="t-name"></dd>
         <dt>Activity</dt><dd id="t-act"></dd>
@@ -274,22 +281,31 @@ $('form').addEventListener('submit', async e => {
 
 function showTicket(d){
   if(d.waitlist){
+    $('t-qrwrap').style.display = 'none';
     $('t-code').textContent = 'WAITLIST';
     $('t-name').textContent = d.name; $('t-act').textContent = d.activity_name;
     $('t-time').textContent = d.slot_label; $('t-spots').textContent = d.party_size;
-    $('t-sms').textContent = '⏳ Added to the waitlist — we\'ll text them if a spot opens up.';
+    $('t-sms').textContent = '⏳ Added to the waitlist — we\'ll contact them if a spot opens up.';
     $('overlay').classList.add('on'); return;
   }
+  $('t-qrwrap').style.display = '';
+  $('t-qr').src = '/ticketqr/' + encodeURIComponent(d.ticket_code) + '.svg';
+  const turl = d.ticket_url || (location.origin + '/t/' + d.ticket_code);
+  $('t-link').href = turl; $('t-link').textContent = turl;
   $('t-code').textContent = d.ticket_code;
   $('t-name').textContent = d.name;
   $('t-act').textContent  = d.activity_name;
   $('t-time').textContent = d.slot_label;
   $('t-spots').textContent= d.party_size;
-  const note = $('t-sms');
-  if(d.sms_status==='physical'){ note.textContent = '🎫 Physical ticket — print or show this screen to the participant.'; }
-  else if(d.sms_status==='sent'){ note.textContent = '📲 Confirmation text sent to the participant.'; }
-  else if(d.sms_status==='not_configured'){ note.textContent = '📝 Texting isn\'t turned on yet — show this screen as the ticket.'; }
-  else { note.textContent = '⚠️ Couldn\'t send the text, but the signup is saved. Show this screen as the ticket.'; }
+  // Extra note about text/email delivery (the QR above is the main handoff).
+  let msg;
+  if(d.sms_status==='sent'){ msg = '📲 Confirmation text sent too.'; }
+  else if(d.sms_status==='physical'){ msg = '🎫 They can also scan the QR above to keep their ticket.'; }
+  else if(d.sms_status==='failed'){ msg = '⚠️ The text didn\'t go through — the QR above is their ticket.'; }
+  else { msg = 'Automatic texts aren\'t on yet — the QR above is their ticket.'; }
+  if(d.email_status==='sent'){ msg += ' ✉️ Emailed too.'; }
+  else if(d.email_status==='failed'){ msg += ' (Email didn\'t send.)'; }
+  $('t-sms').textContent = msg;
   $('overlay').classList.add('on');
 }
 
