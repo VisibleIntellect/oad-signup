@@ -68,6 +68,11 @@ SMTP_PASS = os.environ.get("SMTP_PASS", "").strip()
 EMAIL_FROM = (os.environ.get("EMAIL_FROM", "") or SMTP_USER).strip()
 EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Friends of Big Bear Valley").strip()
 
+# Show the participant self-service opt-in box on the ticket page? Off by default
+# (booth volunteers collect contact info). Set SHOW_TICKET_OPTIN=1 to turn it on
+# for future events where participants opt in themselves.
+SHOW_TICKET_OPTIN = os.environ.get("SHOW_TICKET_OPTIN", "").strip().lower() in ("1", "true", "yes", "on")
+
 # === GitHub sync — pushes data/activities.json back to the repo when the
 # curated activity list changes via /admin/activities. The actual push runs
 # in a background thread debounced by GITHUB_SYNC_DEBOUNCE_SECONDS so a burst
@@ -386,7 +391,8 @@ def ticket_page(code):
     ).fetchone()
     loc = loc_row["location"] if loc_row else None
     return render_template(
-        "ticket.html", event=EVENT, r=r, loc=loc, pretty_slot=pretty_slot
+        "ticket.html", event=EVENT, r=r, loc=loc, pretty_slot=pretty_slot,
+        show_optin=SHOW_TICKET_OPTIN,
     )
 
 
