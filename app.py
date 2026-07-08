@@ -27,6 +27,7 @@ import urllib.request
 import urllib.error
 from email.message import EmailMessage
 from datetime import datetime
+from itsdangerous import URLSafeSerializer
 from flask import (
     Flask, request, jsonify, render_template, redirect,
     url_for, Response, g, abort, session, send_file,
@@ -183,6 +184,8 @@ def init_db():
         db.execute("ALTER TABLE registrations ADD COLUMN consent_at TEXT")
     if "consent_source" not in cols:
         db.execute("ALTER TABLE registrations ADD COLUMN consent_source TEXT")
+    if "checked_in_at" not in cols:
+        db.execute("ALTER TABLE registrations ADD COLUMN checked_in_at TEXT")
     acols = [r[1] for r in db.execute("PRAGMA table_info(activities)").fetchall()]
     if "location" not in acols:
         db.execute("ALTER TABLE activities ADD COLUMN location TEXT")
@@ -278,6 +281,23 @@ def base_url():
 
 def ticket_url(code):
     return f"{base_url()}/t/{code}"
+
+
+def _checkin_serializer():
+    return URLSafeSerializer(SECRET_KEY, salt="oad-checkin")
+
+
+def checkin_token(activity_name):
+    """Signed, tamper-proof token for an activity's station check-in link.
+    Lets an activity lead open their check-in page without the admin key."""
+    return _checkin_serializer().dumps(activity_name)
+
+
+def checkin_activity_from_token(token):
+    try:
+        return _checkin_serializer().loads(token)
+    except Exception:
+        return None
 
 
 def build_ticket_email(name, activity_name, slot, party_size, code, turl, loc=None):
@@ -752,6 +772,113 @@ def api_ticket_optin():
         )
 
     return jsonify({"ok": True, "sms_status": sms_status, "email_status": email_status})
+
+
+# ----- Activity check-in (per-activity stations) ----------------------------
+def _regs_grouped_by_slot(activity_name):
+    db = get_db()
+    regs = db.execute(
+        "SELECT ticket_code,name,party_size,slot,checked_in_at FROM registrations "
+        "WHERE activity_name=? ORDER BY slot, created_at",
+        (activity_name,),
+    ).fetchall()
+    groups = {}
+    for r in regs:
+        groups.setdefault(r["slot"], []).append(r)
+    ordered = sorted(groups.items(), key=lambda kv: (kv[0] or ""))
+    return regs, ordered
+
+
+@app.route("/checkin")
+def checkin_index():
+    """Organizer view: one check-in link + print sheet per activity, to email
+    to each activity lead. Admin-key gated."""
+    key = request.args.get("key", "")
+    if key != ADMIN_KEY:
+        return render_template("admin_login.html")
+    db = get_db()
+    rows = db.execute(
+        "SELECT name, COUNT(*) AS slots, SUM(capacity) AS cap "
+        "FROM activities GROUP BY name ORDER BY name"
+    ).fetchall()
+    acts = [{"name": r["name"], "slots": r["slots"],
+             "token": checkin_token(r["name"])} for r in rows]
+    return render_template("checkin_index.html", event=EVENT, acts=acts,
+                           key=key, base=base_url())
+
+
+@app.route("/checkin/<token>")
+def checkin_station(token):
+    name = checkin_activity_from_token(token)
+    if name is None:
+        abort(404)
+    return render_template("checkin.html", event=EVENT,
+                           activity_name=name, token=token)
+
+
+@app.route("/api/checkin/data")
+def api_checkin_data():
+    token = request.args.get("token", "")
+    name = checkin_activity_from_token(token)
+    if name is None:
+        return jsonify({"ok": False, "error": "Invalid check-in link."}), 403
+    regs, ordered = _regs_grouped_by_slot(name)
+    groups = []
+    for slot, people in ordered:
+        groups.append({
+            "slot": slot,
+            "slot_label": pretty_slot(slot),
+            "people": [{
+                "ticket_code": p["ticket_code"],
+                "name": p["name"],
+                "party_size": p["party_size"],
+                "checked_in_at": p["checked_in_at"],
+            } for p in people],
+        })
+    return jsonify({
+        "ok": True,
+        "activity": name,
+        "groups": groups,
+        "total_tickets": len(regs),
+        "total_people": sum(r["party_size"] for r in regs),
+        "checked_tickets": sum(1 for r in regs if r["checked_in_at"]),
+    })
+
+
+@app.route("/api/checkin/mark", methods=["POST"])
+def api_checkin_mark():
+    data = request.get_json(silent=True) or {}
+    token = data.get("token", "")
+    name = checkin_activity_from_token(token)
+    if name is None:
+        return jsonify({"ok": False, "error": "Invalid check-in link."}), 403
+    code = (data.get("ticket_code") or "").strip()
+    checked = bool(data.get("checked"))
+    db = get_db()
+    r = db.execute(
+        "SELECT activity_name, checked_in_at FROM registrations WHERE ticket_code=?",
+        (code,),
+    ).fetchone()
+    if not r or r["activity_name"] != name:
+        return jsonify({"ok": False, "error": "That ticket isn't on this activity's list."}), 404
+    already = r["checked_in_at"]
+    ts = datetime.now().isoformat(timespec="seconds") if checked else None
+    db.execute("UPDATE registrations SET checked_in_at=? WHERE ticket_code=?",
+               (ts, code))
+    db.commit()
+    return jsonify({"ok": True, "ticket_code": code, "checked_in_at": ts,
+                    "was_already_checked_in": bool(checked and already)})
+
+
+@app.route("/checkin/<token>/print")
+def checkin_print(token):
+    name = checkin_activity_from_token(token)
+    if name is None:
+        abort(404)
+    regs, ordered = _regs_grouped_by_slot(name)
+    return render_template("checkin_print.html", event=EVENT,
+                           activity_name=name, groups=ordered,
+                           pretty_slot=pretty_slot, total=len(regs))
 
 
 # ----- Admin routes ---------------------------------------------------------
