@@ -292,7 +292,7 @@ function showTicket(d){
     $('overlay').classList.add('on'); return;
   }
   $('t-qrwrap').style.display = '';
-  $('t-qr').src = '/ticketqr/' + encodeURIComponent(d.ticket_code) + '.svg';
+  $('t-qr').src = '/ticketqr/' + encodeURIComponent(d.ticket_code) + '.png';
   const turl = d.ticket_url || (location.origin + '/t/' + d.ticket_code);
   $('t-link').href = turl; $('t-link').textContent = turl;
   $('t-code').textContent = d.ticket_code;
