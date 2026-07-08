@@ -174,6 +174,10 @@ def init_db():
     cols = [r[1] for r in db.execute("PRAGMA table_info(registrations)").fetchall()]
     if "registered_by" not in cols:
         db.execute("ALTER TABLE registrations ADD COLUMN registered_by TEXT")
+    if "consent_at" not in cols:
+        db.execute("ALTER TABLE registrations ADD COLUMN consent_at TEXT")
+    if "consent_source" not in cols:
+        db.execute("ALTER TABLE registrations ADD COLUMN consent_source TEXT")
     acols = [r[1] for r in db.execute("PRAGMA table_info(activities)").fetchall()]
     if "location" not in acols:
         db.execute("ALTER TABLE activities ADD COLUMN location TEXT")
@@ -645,6 +649,62 @@ def api_signup():
         "email_status": email_status,
         "event": EVENT,
     })
+
+
+@app.route("/api/ticket-optin", methods=["POST"])
+def api_ticket_optin():
+    """Self-service opt-in: the participant, on their own ticket page, enters
+    their own phone and/or email and explicitly consents to receive their
+    confirmation. This is the carrier-compliant, self-initiated opt-in that
+    A2P 10DLC / toll-free verification want to see. Records proof of consent."""
+    data = request.get_json(silent=True) or request.form
+    code = (data.get("code") or "").strip()
+    phone_raw = (data.get("phone") or "").strip()
+    email = (data.get("email") or "").strip()
+    consent = str(data.get("consent")).lower() in ("true", "1", "on", "yes")
+
+    if not consent:
+        return jsonify({"ok": False, "error": "Please check the box to agree before we send your ticket."}), 400
+    phone = normalize_phone(phone_raw) if phone_raw else None
+    if not phone and not email:
+        return jsonify({"ok": False, "error": "Enter a mobile number or an email so we can send your ticket."}), 400
+
+    db = get_db()
+    r = db.execute(
+        "SELECT * FROM registrations WHERE ticket_code=?", (code,)
+    ).fetchone()
+    if not r:
+        return jsonify({"ok": False, "error": "We couldn't find that ticket."}), 404
+
+    # Record the self-service consent (timestamp + source = proof of opt-in).
+    db.execute(
+        "UPDATE registrations SET phone=COALESCE(?,phone), email=COALESCE(?,email), "
+        "consent_at=?, consent_source=? WHERE ticket_code=?",
+        (phone, (email or None), datetime.now().isoformat(timespec="seconds"),
+         "self-service web opt-in", code),
+    )
+    db.commit()
+
+    turl = ticket_url(code)
+    sms_status = None
+    if phone:
+        body = build_message(r["name"], r["activity_name"], r["slot"], r["party_size"], code)
+        sms_status = send_sms(phone, body)
+        db.execute(
+            "UPDATE registrations SET sms_status=? WHERE ticket_code=?",
+            (sms_status, code),
+        )
+        db.commit()
+    email_status = None
+    if email:
+        etext, ehtml = build_ticket_email(
+            r["name"], r["activity_name"], r["slot"], r["party_size"], code, turl
+        )
+        email_status = send_email(
+            email, f"Your {EVENT['name']} ticket — {r['activity_name']}", etext, ehtml
+        )
+
+    return jsonify({"ok": True, "sms_status": sms_status, "email_status": email_status})
 
 
 # ----- Admin routes ---------------------------------------------------------
