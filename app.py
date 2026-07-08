@@ -402,26 +402,57 @@ def ticket_page(code):
     )
 
 
-@app.route("/ticketqr/<code>.svg")
+def _branded_qr_png(url, logo_frac=0.45):
+    """Branded QR: FOBBV-green modules with the eagle/bear logo set into the
+    center along its actual silhouette (thin white halo for legibility). High
+    error correction keeps it scannable. Returns PNG bytes."""
+    import qrcode
+    from PIL import Image, ImageFilter
+    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_H,
+                       box_size=12, border=4)
+    qr.add_data(url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="#1f4e31", back_color="white").convert("RGBA")
+    W, H = img.size
+    logo = Image.open(os.path.join(BASE_DIR, "static", "logo.png")).convert("RGBA")
+    target = int(W * logo_frac)
+    lw, lh = logo.size
+    s = target / max(lw, lh)
+    logo = logo.resize((max(1, int(lw * s)), max(1, int(lh * s))), Image.LANCZOS)
+    lw, lh = logo.size
+    halo = logo.split()[3].point(lambda a: 255 if a > 40 else 0)
+    for _ in range(3):
+        halo = halo.filter(ImageFilter.MaxFilter(5))
+    pos = ((W - lw) // 2, (H - lh) // 2)
+    img.paste(Image.new("RGBA", (lw, lh), (255, 255, 255, 255)), pos, halo)
+    img.paste(logo, pos, logo)
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    return buf.getvalue()
+
+
+@app.route("/ticketqr/<code>.png")
 def ticket_qr(code):
-    """SVG QR code encoding the participant's ticket URL. SVG output keeps this
-    dependency-light (no Pillow needed)."""
+    """Branded QR (FOBBV logo centered) encoding the participant's ticket URL.
+    Falls back to a plain QR if Pillow or the logo file is unavailable."""
     url = ticket_url(code)
     try:
-        import qrcode
-        import qrcode.image.svg
-        qr = qrcode.QRCode(box_size=10, border=2)
-        qr.add_data(url)
-        qr.make(fit=True)
-        img = qr.make_image(image_factory=qrcode.image.svg.SvgPathImage)
-        buf = io.BytesIO()
-        img.save(buf)
-        svg = buf.getvalue().decode("utf-8")
+        resp = Response(_branded_qr_png(url), mimetype="image/png")
     except Exception as e:
-        app.logger.warning("QR generation failed: %s", e)
-        svg = ("<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'>"
-               "</svg>")
-    resp = Response(svg, mimetype="image/svg+xml")
+        app.logger.warning("Branded QR failed (%s); falling back to plain SVG", e)
+        try:
+            import qrcode
+            import qrcode.image.svg
+            qr = qrcode.QRCode(box_size=10, border=2)
+            qr.add_data(url)
+            qr.make(fit=True)
+            b = io.BytesIO()
+            qr.make_image(image_factory=qrcode.image.svg.SvgPathImage).save(b)
+            resp = Response(b.getvalue().decode("utf-8"), mimetype="image/svg+xml")
+        except Exception:
+            resp = Response(
+                "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'></svg>",
+                mimetype="image/svg+xml")
     resp.headers["Cache-Control"] = "public, max-age=3600"
     return resp
 
