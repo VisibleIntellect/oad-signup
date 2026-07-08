@@ -280,16 +280,22 @@ def ticket_url(code):
     return f"{base_url()}/t/{code}"
 
 
-def build_ticket_email(name, activity_name, slot, party_size, code, turl):
+def build_ticket_email(name, activity_name, slot, party_size, code, turl, loc=None):
     """Returns (plain_text, html) for a ticket confirmation email."""
     when = f"{activity_name} @ {pretty_slot(slot)}"
+    meet_line = f"Meet at: {loc}\n" if loc else ""
+    meet_row = (
+        "<tr><td style=\"color:#6f6a5d;padding:4px 0\">Meet at</td>"
+        f"<td style=\"font-weight:600;text-align:right\">{loc}</td></tr>"
+    ) if loc else ""
     text = (
         f"You're confirmed for {EVENT['name']}!\n\n"
         f"Name: {name}\n"
         f"Activity: {when}\n"
         f"Spots: {party_size}\n"
         f"Ticket: {code}\n"
-        f"{EVENT['date']} - {EVENT['location']}\n\n"
+        f"{meet_line}"
+        f"Date: {EVENT['date']}\n\n"
         f"View or show your ticket: {turl}\n\n"
         f"Show your ticket (this email or the link) at the activity. See you there!\n"
         f"— Friends of Big Bear Valley"
@@ -308,8 +314,8 @@ def build_ticket_email(name, activity_name, slot, party_size, code, turl):
         f"<tr><td style=\"color:#6f6a5d;padding:4px 0\">Name</td><td style=\"font-weight:600;text-align:right\">{name}</td></tr>"
         f"<tr><td style=\"color:#6f6a5d;padding:4px 0\">Activity</td><td style=\"font-weight:600;text-align:right\">{when}</td></tr>"
         f"<tr><td style=\"color:#6f6a5d;padding:4px 0\">Spots</td><td style=\"font-weight:600;text-align:right\">{party_size}</td></tr>"
-        f"<tr><td style=\"color:#6f6a5d;padding:4px 0\">When</td><td style=\"font-weight:600;text-align:right\">{EVENT['date']}</td></tr>"
-        f"<tr><td style=\"color:#6f6a5d;padding:4px 0\">Where</td><td style=\"font-weight:600;text-align:right\">{EVENT['location']}</td></tr>"
+        f"{meet_row}"
+        f"<tr><td style=\"color:#6f6a5d;padding:4px 0\">Date</td><td style=\"font-weight:600;text-align:right\">{EVENT['date']}</td></tr>"
         "</table>"
         f"<div style=\"text-align:center;margin-top:18px\"><a href=\"{turl}\" "
         "style=\"display:inline-block;background:#2f6a45;color:#fff;text-decoration:none;padding:11px 20px;"
@@ -636,7 +642,7 @@ def api_signup():
     email_status = None
     if email:
         etext, ehtml = build_ticket_email(
-            name, act["name"], act["slot"], party_size, code, turl
+            name, act["name"], act["slot"], party_size, code, turl, act["location"]
         )
         email_status = send_email(
             email, f"Your {EVENT['name']} ticket — {act['name']}", etext, ehtml
@@ -703,8 +709,12 @@ def api_ticket_optin():
         db.commit()
     email_status = None
     if email:
+        loc_row = db.execute(
+            "SELECT location FROM activities WHERE id=?", (r["activity_id"],)
+        ).fetchone()
+        optin_loc = loc_row["location"] if loc_row else None
         etext, ehtml = build_ticket_email(
-            r["name"], r["activity_name"], r["slot"], r["party_size"], code, turl
+            r["name"], r["activity_name"], r["slot"], r["party_size"], code, turl, optin_loc
         )
         email_status = send_email(
             email, f"Your {EVENT['name']} ticket — {r['activity_name']}", etext, ehtml
