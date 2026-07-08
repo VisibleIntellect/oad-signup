@@ -27,6 +27,23 @@
   .note{margin:18px 0 0;font-size:.9rem;color:var(--muted);text-align:center;
         background:#eef2ea;border-radius:10px;padding:12px}
   .foot{text-align:center;color:var(--muted);font-size:.8rem;margin:16px 0 0}
+  .optin{margin-top:14px;padding:20px}
+  .optin h3{margin:0 0 4px;color:var(--green-d);font-size:1.05rem}
+  .optin .sub{margin:0 0 12px;color:var(--muted);font-size:.9rem}
+  .optin label.fld{display:block;font-size:.8rem;font-weight:600;margin:10px 0 4px}
+  .optin input[type=tel],.optin input[type=email]{width:100%;padding:11px 12px;
+      border:1.5px solid var(--line);border-radius:10px;font-size:1rem}
+  .consent{display:flex;gap:9px;align-items:flex-start;margin:14px 0 4px;
+      font-size:.8rem;color:#3a4a3f;line-height:1.4}
+  .consent input{margin-top:2px;width:18px;height:18px;flex:none}
+  .consent a{color:var(--green-d);font-weight:600}
+  .optin button{width:100%;margin-top:14px;padding:13px;border:0;border-radius:11px;
+      background:var(--green);color:#fff;font-weight:700;font-size:1rem;cursor:pointer}
+  .optin button:disabled{background:#9bb3a1;cursor:not-allowed}
+  .op-msg{margin-top:10px;font-size:.9rem;min-height:1em}
+  .op-msg.ok{color:var(--green-d)} .op-msg.err{color:#b2473a}
+  .op-done{background:#eef2ea;border-radius:10px;padding:12px;text-align:center;
+      color:var(--green-d);font-weight:600}
 </style>
 </head>
 <body>
@@ -53,7 +70,54 @@
         <div class="note">Show this screen at the activity. See you there!</div>
       </div>
     </div>
+    <div class="card optin">
+      <h3>📲 Get a copy sent to you</h3>
+      <p class="sub">Enter your own mobile number and/or email and we'll send this ticket to you.</p>
+      <label class="fld" for="op-phone">Mobile number</label>
+      <input id="op-phone" type="tel" inputmode="tel" placeholder="(555) 555-5555">
+      <label class="fld" for="op-email">Email</label>
+      <input id="op-email" type="email" placeholder="you@email.com">
+      <label class="consent">
+        <input type="checkbox" id="op-consent">
+        <span>I agree to receive a one-time text and/or email confirming my
+        {{ event.name }} reservation from Friends of Big Bear Valley. Message &amp; data
+        rates may apply. Message frequency: 1 per sign-up. Reply STOP to opt out, HELP for help.
+        <a href="/sms-terms" target="_blank" rel="noopener">Terms</a> &middot;
+        <a href="/sms-privacy" target="_blank" rel="noopener">Privacy</a>.</span>
+      </label>
+      <button id="op-send" type="button">Send my ticket</button>
+      <div class="op-msg" id="op-msg"></div>
+    </div>
     <div class="foot">Friends of Big Bear Valley · {{ event.date }}</div>
   </div>
+<script>
+  const CODE = {{ r['ticket_code']|tojson }};
+  const $ = id => document.getElementById(id);
+  $('op-send').addEventListener('click', async () => {
+    const phone = $('op-phone').value.trim();
+    const email = $('op-email').value.trim();
+    const consent = $('op-consent').checked;
+    const msg = $('op-msg'); msg.className = 'op-msg';
+    if(!consent){ msg.className='op-msg err'; msg.textContent='Please check the box to agree first.'; return; }
+    if(!phone && !email){ msg.className='op-msg err'; msg.textContent='Enter a mobile number or an email.'; return; }
+    $('op-send').disabled = true; $('op-send').textContent = 'Sending…';
+    try{
+      const r = await fetch('/api/ticket-optin', {method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({code: CODE, phone, email, consent: true})});
+      const d = await r.json();
+      if(!d.ok){ msg.className='op-msg err'; msg.textContent = d.error || 'Something went wrong.';
+                 $('op-send').disabled=false; $('op-send').textContent='Send my ticket'; return; }
+      const bits = [];
+      if(d.sms_status==='sent') bits.push('texted');
+      if(d.email_status==='sent') bits.push('emailed');
+      const how = bits.length ? ' Your ticket was ' + bits.join(' and ') + '.' :
+                  ' You\'re opted in — your ticket will arrive shortly.';
+      $('op-send').closest('.optin').innerHTML =
+        '<div class="op-done">✅ Thanks!' + how + '</div>';
+    }catch(e){ msg.className='op-msg err'; msg.textContent='Network error — please try again.';
+               $('op-send').disabled=false; $('op-send').textContent='Send my ticket'; }
+  });
+</script>
 </body>
 </html>
