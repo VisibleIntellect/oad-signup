@@ -70,6 +70,7 @@
         <div class="note">Show this screen at the activity. See you there!</div>
       </div>
     </div>
+    {% if show_optin %}
     <div class="card optin">
       <h3>📲 Get a copy sent to you</h3>
       <p class="sub">Enter your own mobile number and/or email and we'll send this ticket to you.</p>
@@ -88,8 +89,10 @@
       <button id="op-send" type="button">Send my ticket</button>
       <div class="op-msg" id="op-msg"></div>
     </div>
+    {% endif %}
     <div class="foot">Friends of Big Bear Valley · {{ event.date }}</div>
   </div>
+{% if show_optin %}
 <script>
   const CODE = {{ r['ticket_code']|tojson }};
   const $ = id => document.getElementById(id);
@@ -119,5 +122,6 @@
                $('op-send').disabled=false; $('op-send').textContent='Send my ticket'; }
   });
 </script>
+{% endif %}
 </body>
 </html>
