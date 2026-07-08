@@ -69,7 +69,6 @@
     <h1>Manage Activities — {{ event.name }}</h1>
   </div>
   <div class="hright">
-    <span id="sync-pill" class="sync-pill off" title="Pushes data/activities.json to GitHub when the curated list changes."><span class="dot"></span><span class="t">Sync: checking…</span></span>
     <a class="back" href="/admin?key={{ key }}">← Back to registrations</a>
   </div>
 </header>
@@ -202,58 +201,7 @@ document.querySelectorAll('tr[data-id]').forEach(tr => {
   });
 });
 
-// === GitHub sync indicator ===
-// Polls /api/admin/sync_status every 3s. Reflects whether a sync is pending
-// (debounce timer running), in flight, succeeded, or errored.
-const SYNC_PILL = document.getElementById('sync-pill');
-const SYNC_TEXT = SYNC_PILL.querySelector('.t');
-function relTime(iso){
-  if(!iso) return '';
-  const t = Math.max(0, Math.round((Date.now() - new Date(iso).getTime())/1000));
-  if(t < 5)     return 'just now';
-  if(t < 60)    return t + 's ago';
-  if(t < 3600)  return Math.round(t/60) + 'm ago';
-  if(t < 86400) return Math.round(t/3600) + 'h ago';
-  return Math.round(t/86400) + 'd ago';
-}
-async function pollSync(){
-  let cls = 'idle', text = 'Sync: idle', title = '';
-  try{
-    const r = await fetch('/api/admin/sync_status?key='+encodeURIComponent(KEY), {cache:'no-store'});
-    const s = await r.json();
-    if(s.ok === false){ throw new Error(s.error || 'status fetch failed'); }
-    if(!s.enabled){
-      cls = 'off';
-      text = 'Sync: off (no GITHUB_TOKEN)';
-      title = 'Set GITHUB_TOKEN in Render → Environment to enable automatic GitHub sync.';
-    } else if(s.in_flight){
-      cls = 'syncing'; text = 'Sync: pushing to GitHub…';
-    } else if(s.pending){
-      cls = 'pending';
-      text = 'Sync: change queued (~' + s.debounce_seconds + 's)…';
-    } else if(s.last_sync_error){
-      cls = 'error';
-      const short = s.last_sync_error.length > 80 ? s.last_sync_error.slice(0,80)+'…' : s.last_sync_error;
-      text = 'Sync: ⚠ ' + short;
-      title = 'Last error: ' + s.last_sync_error;
-    } else if(s.last_sync_success_at){
-      cls = 'synced';
-      text = 'Sync: ✓ ' + relTime(s.last_sync_success_at);
-      title = 'Last pushed ' + s.last_sync_success_at + ' to ' + s.repo + '/' + s.file;
-    } else {
-      cls = 'idle'; text = 'Sync: idle (nothing pushed yet this run)';
-    }
-  }catch(e){
-    cls = 'error'; text = 'Sync: status unavailable';
-    title = String(e);
-  }
-  SYNC_PILL.className = 'sync-pill ' + cls;
-  SYNC_TEXT.textContent = text;
-  if(title) SYNC_PILL.setAttribute('title', title);
-  else SYNC_PILL.removeAttribute('title');
-}
-pollSync();
-setInterval(pollSync, 3000);
+// (GitHub auto-sync status indicator removed — the app's data lives in its own database.)
 </script>
 </body>
 </html>
