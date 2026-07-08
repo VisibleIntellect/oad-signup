@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check-in — {{ activity_name }}</title>
+<style>
+  :root{--green:#2f6a45;--green-d:#1f4e31;--bg:#f5f1e7;--card:#fff;--line:#e6dfce;
+        --muted:#6f6a5d;--ok:#2f6a45;--okbg:#e3f2e7}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:#1f261f;line-height:1.4}
+  header{background:linear-gradient(160deg,#2f6a45,#1f4e31);color:#fff;padding:14px 16px;
+         display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:5}
+  header .brandlogo{height:42px;width:42px;border-radius:50%;background:#fff;padding:4px;
+                    object-fit:contain;flex:none}
+  header h1{margin:0;font-size:1.15rem;line-height:1.15}
+  header .sub{font-size:.8rem;opacity:.9;margin-top:2px}
+  .wrap{max-width:720px;margin:0 auto;padding:14px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;
+        padding:10px 14px;margin-bottom:12px;font-size:.95rem;display:flex;
+        justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+  .stat b{color:var(--green-d);font-size:1.1rem}
+  .filter{width:100%;padding:13px 14px;border:1.5px solid var(--line);border-radius:11px;
+          font-size:1.05rem;margin-bottom:12px}
+  .slot{background:var(--card);border:1px solid var(--line);border-radius:14px;
+        overflow:hidden;margin-bottom:14px}
+  .slot > h2{margin:0;padding:11px 15px;font-size:1.05rem;color:#fff;
+             background:linear-gradient(160deg,#2f6a45,#1f4e31);
+             display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .slot > h2 .c{font-size:.8rem;font-weight:700;background:#ffffff33;padding:2px 9px;border-radius:20px}
+  .row{display:flex;align-items:center;gap:12px;padding:12px 15px;border-top:1px solid #eef0ec}
+  .row:first-of-type{border-top:none}
+  .row .who{flex:1;min-width:0}
+  .row .code{font-weight:800;color:var(--green-d);font-size:1.02rem;letter-spacing:.5px}
+  .row .nm{font-size:.95rem}
+  .row .sp{font-size:.82rem;color:var(--muted)}
+  .row.done{background:var(--okbg)}
+  .row.done .code{color:var(--ok)}
+  .btn{border:0;border-radius:10px;font-weight:800;font-size:.95rem;padding:12px 16px;
+       cursor:pointer;white-space:nowrap;flex:none}
+  .btn.checkin{background:var(--green);color:#fff}
+  .btn.undo{background:#fff;color:var(--muted);border:1.5px solid var(--line);font-weight:700;
+            font-size:.82rem;padding:8px 12px}
+  .done-tag{font-size:.8rem;color:var(--ok);font-weight:700;text-align:right;white-space:nowrap}
+  .empty{padding:22px;text-align:center;color:var(--muted)}
+  .foot{text-align:center;color:var(--muted);font-size:.8rem;margin:8px 0 24px}
+</style>
+</head>
+<body>
+<header>
+  <img class="brandlogo" src="/logo" alt="FOBBV" onerror="this.style.display='none'">
+  <div>
+    <h1>{{ activity_name }} — Check-in</h1>
+    <div class="sub">{{ event.name }} · updates automatically</div>
+  </div>
+</header>
+<div class="wrap">
+  <div class="stat">
+    <span><b id="s-checked">0</b> of <b id="s-tickets">0</b> tickets checked in</span>
+    <span id="s-people" class="sp"></span>
+  </div>
+  <input class="filter" id="filter" placeholder="🔍 Type a ticket code or name to find it fast">
+  <div id="list"><div class="empty">Loading…</div></div>
+  <div class="foot">Tip: when someone arrives, find their ticket and tap <b>Check in</b>.
+    If it's already green, that ticket was already used.</div>
+</div>
+<script>
+const TOKEN = {{ token|tojson }};
+const $ = id => document.getElementById(id);
+let DATA = {groups:[]};
+
+async function load(){
+  try{
+    const r = await fetch('/api/checkin/data?token='+encodeURIComponent(TOKEN)+'&t='+Date.now(),
+      {cache:'no-store'});
+    const d = await r.json();
+    if(d.ok){ DATA = d; render(); }
+  }catch(e){ /* keep last good */ }
+}
+
+async function mark(code, checked){
+  try{
+    const r = await fetch('/api/checkin/mark', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({token: TOKEN, ticket_code: code, checked})});
+    const d = await r.json();
+    if(!d.ok){ alert(d.error || 'Could not update.'); }
+  }catch(e){ alert('Network error — try again.'); }
+  await load();
+}
+
+function fmtTime(iso){
+  if(!iso) return '';
+  try{ return new Date(iso).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}); }
+  catch(e){ return ''; }
+}
+
+function render(){
+  $('s-checked').textContent = DATA.checked_tickets || 0;
+  $('s-tickets').textContent = DATA.total_tickets || 0;
+  $('s-people').textContent = (DATA.total_people || 0) + ' people booked';
+  const q = $('filter').value.trim().toLowerCase();
+  const box = $('list'); box.innerHTML = '';
+  let shown = 0;
+  (DATA.groups||[]).forEach(g => {
+    const people = g.people.filter(p =>
+      !q || (p.ticket_code||'').toLowerCase().includes(q) || (p.name||'').toLowerCase().includes(q));
+    if(!people.length) return;
+    shown += people.length;
+    const sec = document.createElement('div'); sec.className='slot';
+    const doneN = people.filter(p=>p.checked_in_at).length;
+    const h = document.createElement('h2');
+    h.innerHTML = '<span>'+g.slot_label+'</span><span class="c">'+doneN+'/'+people.length+' in</span>';
+    sec.appendChild(h);
+    people.forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'row' + (p.checked_in_at ? ' done' : '');
+      const who = '<div class="who"><div class="code">'+p.ticket_code+'</div>'+
+        '<div class="nm">'+ (p.name||'') +'</div>'+
+        '<div class="sp">'+p.party_size+' spot'+(p.party_size==1?'':'s')+'</div></div>';
+      if(p.checked_in_at){
+        row.innerHTML = who +
+          '<div class="done-tag">✓ Checked in<br>'+fmtTime(p.checked_in_at)+'</div>'+
+          '<button class="btn undo">Undo</button>';
+        row.querySelector('.undo').onclick = () => mark(p.ticket_code, false);
+      } else {
+        row.innerHTML = who + '<button class="btn checkin">Check in</button>';
+        row.querySelector('.checkin').onclick = () => mark(p.ticket_code, true);
+      }
+      sec.appendChild(row);
+    });
+    box.appendChild(sec);
+  });
+  if(!shown){ box.innerHTML = '<div class="empty">'+
+    (q ? 'No ticket matches "'+q+'".' : 'No sign-ups yet for this activity.')+'</div>'; }
+}
+
+$('filter').addEventListener('input', render);
+load();
+setInterval(load, 15000);
+document.addEventListener('visibilitychange', () => { if(!document.hidden) load(); });
+</script>
+</body>
+</html>

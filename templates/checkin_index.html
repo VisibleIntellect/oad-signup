@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check-in Links — {{ event.name }}</title>
+<style>
+  :root{--green:#2f6a45;--green-d:#1f4e31;--bg:#f5f1e7;--card:#fff;--line:#e6dfce;--muted:#6f6a5d;--accent:#c2872f}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:#1f261f;line-height:1.45}
+  header{background:linear-gradient(160deg,#2f6a45,#1f4e31);color:#fff;padding:16px 18px;
+         display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  header .brandlogo{height:44px;width:44px;border-radius:50%;background:#fff;padding:4px;object-fit:contain}
+  header h1{margin:0;font-size:1.15rem;flex:1}
+  .back{color:#fff;text-decoration:none;font-size:.85rem;font-weight:600;
+        border:1px solid #ffffff55;padding:8px 12px;border-radius:9px}
+  .wrap{max-width:820px;margin:0 auto;padding:18px}
+  .intro{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;
+         margin-bottom:16px;font-size:.95rem;color:#33402f}
+  .act{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:14px}
+  .act h2{margin:0 0 3px;font-size:1.1rem;color:var(--green-d)}
+  .act .meta{color:var(--muted);font-size:.82rem;margin-bottom:10px}
+  .linkrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .linkrow input{flex:1;min-width:220px;padding:10px 12px;border:1.5px solid var(--line);
+                 border-radius:9px;font-size:.85rem;color:#33402f;background:#fbfaf6}
+  .btn{border:0;border-radius:9px;font-weight:700;font-size:.85rem;padding:10px 14px;cursor:pointer;
+       text-decoration:none;display:inline-block;white-space:nowrap}
+  .btn.copy{background:var(--green);color:#fff}
+  .btn.open{background:#eef2ea;color:var(--green-d);border:1px solid var(--line)}
+  .btn.print{background:var(--accent);color:#fff}
+  .copied{color:var(--green);font-size:.8rem;font-weight:700;margin-left:2px;display:none}
+</style>
+</head>
+<body>
+<header>
+  <img class="brandlogo" src="/logo" alt="FOBBV" onerror="this.style.display='none'">
+  <h1>Activity Check-in Links</h1>
+  <a class="back" href="/admin?key={{ key }}">← Back to registrations</a>
+</header>
+<div class="wrap">
+  <div class="intro">
+    Email each activity lead their <b>Check-in link</b> below. They open it on a phone or
+    tablet at their station — it shows who's booked (updating live as people sign up) and they
+    tap <b>Check in</b> as each person arrives. A ticket that's already checked in shows green,
+    so a shared or reused ticket gets caught. <b>Print sheet</b> gives a paper backup for spots
+    with no signal (print it close to the activity time so it's current).
+  </div>
+  {% for a in acts %}
+  <div class="act">
+    <h2>{{ a.name }}</h2>
+    <div class="meta">{{ a.slots }} time slot{{ '' if a.slots == 1 else 's' }}</div>
+    <div class="linkrow">
+      <input id="u{{ loop.index }}" readonly value="{{ base }}/checkin/{{ a.token }}">
+      <button class="btn copy" onclick="copyLink('u{{ loop.index }}', this)">Copy link</button>
+      <a class="btn open" href="/checkin/{{ a.token }}" target="_blank" rel="noopener">Open</a>
+      <a class="btn print" href="/checkin/{{ a.token }}/print" target="_blank" rel="noopener">Print sheet</a>
+      <span class="copied">Copied!</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<script>
+function copyLink(id, btn){
+  const el = document.getElementById(id);
+  el.select(); el.setSelectionRange(0, 99999);
+  const done = () => { const c = btn.parentNode.querySelector('.copied');
+    c.style.display='inline'; setTimeout(()=>c.style.display='none', 1500); };
+  if(navigator.clipboard){ navigator.clipboard.writeText(el.value).then(done, ()=>{document.execCommand('copy');done();}); }
+  else { document.execCommand('copy'); done(); }
+}
+</script>
+</body>
+</html>

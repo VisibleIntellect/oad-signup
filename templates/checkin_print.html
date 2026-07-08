@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check-in Sheet — {{ activity_name }}</title>
+<style>
+  :root{--green:#1f4e31;--line:#c9c3b4;--muted:#555}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111;background:#f3f1ea}
+  .bar{background:var(--green);color:#fff;padding:12px 18px;text-align:center;display:flex;
+       justify-content:center;gap:10px;align-items:center}
+  .bar button{background:#fff;color:var(--green);border:0;border-radius:8px;padding:9px 16px;
+              font-weight:700;cursor:pointer}
+  .sheet{max-width:8in;margin:14px auto;background:#fff;padding:0.5in 0.55in;
+         box-shadow:0 2px 10px #0002}
+  h1{font-size:20px;margin:0 0 2px;color:var(--green)}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+  h2{font-size:16px;margin:18px 0 6px;color:var(--green);border-bottom:2px solid var(--green);padding-bottom:3px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{border:1px solid var(--line);padding:7px 9px;text-align:left}
+  th{background:#eef1e6;font-size:11px;text-transform:uppercase;letter-spacing:.03em}
+  .ck{width:44px;text-align:center}
+  .box{display:inline-block;width:16px;height:16px;border:1.5px solid #333}
+  .code{font-weight:800;font-family:'DejaVu Sans Mono',monospace}
+  .spots{width:52px;text-align:center}
+  .empty{color:var(--muted);font-style:italic;padding:8px 0}
+  .note{margin-top:16px;font-size:12px;color:var(--muted)}
+  @media print{
+    body{background:#fff}
+    .bar{display:none}
+    .sheet{box-shadow:none;margin:0;max-width:none;padding:0}
+    h2{page-break-after:avoid}
+    tr{page-break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="bar">
+  <span>Print this, or use your browser's Print → “Save as PDF.”</span>
+  <button onclick="window.print()">Print / Save as PDF</button>
+</div>
+<div class="sheet">
+  <h1>{{ activity_name }} — Check-in Sheet</h1>
+  <div class="sub">{{ event.name }} · {{ event.date }} · {{ total }} ticket{{ '' if total == 1 else 's' }} booked
+    &nbsp;·&nbsp; Printed to verify arrivals — cross off each ticket as it's used.</div>
+  {% if groups %}
+    {% for slot, people in groups %}
+    <h2>{{ pretty_slot(slot) }} &nbsp;<span style="font-weight:400;font-size:13px;color:#555">({{ people|length }} ticket{{ '' if people|length == 1 else 's' }})</span></h2>
+    <table>
+      <tr><th class="ck">✓</th><th>Ticket #</th><th>Name</th><th class="spots">Spots</th><th>Notes</th></tr>
+      {% for p in people %}
+      <tr>
+        <td class="ck"><span class="box"></span></td>
+        <td class="code">{{ p['ticket_code'] }}</td>
+        <td>{{ p['name'] }}</td>
+        <td class="spots">{{ p['party_size'] }}</td>
+        <td></td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endfor %}
+  {% else %}
+    <div class="empty">No sign-ups yet for this activity.</div>
+  {% endif %}
+  <div class="note">A ticket number should be crossed off only once. If someone presents a
+    number that's already crossed off, it may be a shared or reused ticket — please verify.</div>
+</div>
+</body>
+</html>
