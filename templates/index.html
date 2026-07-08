@@ -127,8 +127,8 @@
         <input id="party" name="party_size" type="number" min="1" value="1">
       </div>
     </div>
-    <label>Email (optional)</label>
-    <input id="email" name="email" type="email" placeholder="optional@email.com">
+    <label>Email (required — for their ticket)</label>
+    <input id="email" name="email" type="email" class="req" placeholder="name@email.com" required>
     <button class="go" id="go" type="submit" disabled>Select a slot to continue</button>
     <div class="err" id="err"></div>
   </form>
@@ -189,10 +189,12 @@ function applyMode(){
   if(waitlistMode){
     $('seg').style.display = 'none';
     $('phone').required = true;
+    $('email').required = false;
     $('phone-label').textContent = 'Mobile phone (required — to contact for an opening)';
     $('go').textContent = 'Add to waitlist';
   } else {
     $('seg').style.display = 'flex';
+    $('email').required = true;
     applyDelivery();
     $('go').textContent = goLabel();
   }
@@ -257,6 +259,7 @@ $('form').addEventListener('submit', async e => {
   if(!selected){ $('err').textContent='Please pick a time slot first.'; return; }
   if(waitlistMode && !$('phone').value.trim()){ $('err').textContent='A phone number is required for the waitlist.'; return; }
   if(!waitlistMode && delivery==='text' && !$('phone').value.trim()){ $('err').textContent='Enter a phone number, or switch to Physical ticket.'; return; }
+  if(!waitlistMode && !$('email').value.trim()){ $('err').textContent='Please enter their email address.'; return; }
   const payload = {
     name: $('name').value, phone: $('phone').value, email: $('email').value,
     party_size: $('party').value, slot_id: selected.id,
