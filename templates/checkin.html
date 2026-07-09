@@ -4,9 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Check-in — {{ activity_name }}</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <style>
   :root{--green:#2f6a45;--green-d:#1f4e31;--bg:#f5f1e7;--card:#fff;--line:#e6dfce;
-        --muted:#6f6a5d;--ok:#2f6a45;--okbg:#e3f2e7}
+        --muted:#6f6a5d;--ok:#2f6a45;--okbg:#e3f2e7;--warn:#8f5f12;--warnbg:#fbefd9;
+        --bad:#9c3b2e;--badbg:#fbe3e0}
   *{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
        background:var(--bg);color:#1f261f;line-height:1.4}
@@ -17,6 +19,9 @@
   header h1{margin:0;font-size:1.15rem;line-height:1.15}
   header .sub{font-size:.8rem;opacity:.9;margin-top:2px}
   .wrap{max-width:720px;margin:0 auto;padding:14px}
+  .scanbtn{width:100%;border:0;border-radius:13px;background:var(--green);color:#fff;
+           font-size:1.15rem;font-weight:800;padding:16px;cursor:pointer;margin-bottom:12px;
+           display:flex;align-items:center;justify-content:center;gap:10px}
   .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;
         padding:10px 14px;margin-bottom:12px;font-size:.95rem;display:flex;
         justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
@@ -45,6 +50,27 @@
   .done-tag{font-size:.8rem;color:var(--ok);font-weight:700;text-align:right;white-space:nowrap}
   .empty{padding:22px;text-align:center;color:var(--muted)}
   .foot{text-align:center;color:var(--muted);font-size:.8rem;margin:8px 0 24px}
+  /* Scanner overlay */
+  .scan-overlay{position:fixed;inset:0;background:#0e1a12;color:#fff;z-index:50;
+                display:none;flex-direction:column}
+  .scan-overlay.on{display:flex}
+  .scan-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;
+             font-size:1.1rem;font-weight:800}
+  .scan-x{background:#ffffff22;color:#fff;border:0;border-radius:9px;padding:9px 14px;
+          font-weight:700;font-size:.95rem;cursor:pointer}
+  #reader{width:100%;max-width:460px;margin:0 auto}
+  #reader video{border-radius:12px}
+  .scan-hint{text-align:center;color:#cfe3d4;font-size:.9rem;padding:10px 16px}
+  .scan-result{margin:12px 16px;border-radius:14px;padding:16px 18px;display:none}
+  .scan-result.on{display:block}
+  .scan-result .big{font-size:1.3rem;font-weight:800;margin-bottom:4px}
+  .scan-result .det{font-size:1rem}
+  .scan-result.ok{background:var(--okbg);color:var(--green-d)}
+  .scan-result.warn{background:var(--warnbg);color:var(--warn)}
+  .scan-result.bad{background:var(--badbg);color:var(--bad)}
+  .scan-next{display:none;margin:4px 16px 16px;width:calc(100% - 32px);border:0;border-radius:12px;
+             background:#fff;color:var(--green-d);font-weight:800;font-size:1.05rem;padding:15px;cursor:pointer}
+  .scan-next.on{display:block}
 </style>
 </head>
 <body>
@@ -56,15 +82,26 @@
   </div>
 </header>
 <div class="wrap">
+  <button class="scanbtn" id="scanbtn">📷 Scan a ticket</button>
   <div class="stat">
     <span><b id="s-checked">0</b> of <b id="s-tickets">0</b> tickets checked in</span>
     <span id="s-people" class="sp"></span>
   </div>
-  <input class="filter" id="filter" placeholder="🔍 Type a ticket code or name to find it fast">
+  <input class="filter" id="filter" placeholder="🔍 …or type a ticket code / name to check in by hand">
   <div id="list"><div class="empty">Loading…</div></div>
-  <div class="foot">Tip: when someone arrives, find their ticket and tap <b>Check in</b>.
-    If it's already green, that ticket was already used.</div>
+  <div class="foot">Tap <b>Scan a ticket</b> and point the camera at the attendee's QR. Already green
+    means that ticket was already used.</div>
 </div>
+
+<div class="scan-overlay" id="scan-overlay">
+  <div class="scan-head"><span>Scan a ticket</span>
+    <button class="scan-x" id="scan-close">✕ Close</button></div>
+  <div id="reader"></div>
+  <div class="scan-hint" id="scan-hint">Point the camera at the QR code on their ticket.</div>
+  <div class="scan-result" id="scan-result"></div>
+  <button class="scan-next" id="scan-next">Scan next ticket</button>
+</div>
+
 <script>
 const TOKEN = {{ token|tojson }};
 const $ = id => document.getElementById(id);
@@ -78,7 +115,6 @@ async function load(){
     if(d.ok){ DATA = d; render(); }
   }catch(e){ /* keep last good */ }
 }
-
 async function mark(code, checked){
   try{
     const r = await fetch('/api/checkin/mark', {method:'POST',
@@ -89,13 +125,11 @@ async function mark(code, checked){
   }catch(e){ alert('Network error — try again.'); }
   await load();
 }
-
 function fmtTime(iso){
   if(!iso) return '';
   try{ return new Date(iso).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}); }
   catch(e){ return ''; }
 }
-
 function render(){
   $('s-checked').textContent = DATA.checked_tickets || 0;
   $('s-tickets').textContent = DATA.total_tickets || 0;
@@ -135,11 +169,81 @@ function render(){
   if(!shown){ box.innerHTML = '<div class="empty">'+
     (q ? 'No ticket matches "'+q+'".' : 'No sign-ups yet for this activity.')+'</div>'; }
 }
-
 $('filter').addEventListener('input', render);
 load();
 setInterval(load, 15000);
 document.addEventListener('visibilitychange', () => { if(!document.hidden) load(); });
+
+// ===== QR scanner =====
+let qr = null, busy = false;
+function vibrate(ms){ if(navigator.vibrate) try{ navigator.vibrate(ms); }catch(e){} }
+
+async function openScanner(){
+  $('scan-result').className = 'scan-result';
+  $('scan-next').classList.remove('on');
+  $('scan-hint').textContent = 'Point the camera at the QR code on their ticket.';
+  $('scan-overlay').classList.add('on');
+  busy = false;
+  try{
+    if(!qr) qr = new Html5Qrcode("reader");
+    await qr.start({ facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
+      onScan, () => {});
+  }catch(e){
+    $('scan-hint').textContent = 'Could not open the camera — allow camera access, or close this and check people in by tapping their name below.';
+  }
+}
+async function onScan(text){
+  if(busy) return; busy = true;
+  vibrate(70);
+  try{ await qr.pause(true); }catch(e){}
+  let d;
+  try{
+    const r = await fetch('/api/checkin/scan', {method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({token: TOKEN, code: text})});
+    d = await r.json();
+  }catch(e){ d = {ok:false, status:'neterr'}; }
+  showResult(d);
+  load();
+}
+function showResult(d){
+  const box = $('scan-result');
+  let cls='bad', big='', det='';
+  const who = d && d.name ? (d.name + (d.slot_label ? ' · ' + d.slot_label : '') +
+              (d.party_size ? ' · ' + d.party_size + ' spot' + (d.party_size==1?'':'s') : '')) : '';
+  const st = d && d.status;
+  if(st === 'checked_in'){ cls='ok'; big='✓ Checked in'; det = who; }
+  else if(st === 'already'){ cls='warn'; big='⚠ Already checked in';
+    det = who + (d.checked_in_at ? ' — at ' + fmtTime(d.checked_in_at) : '') +
+          '. This ticket was already used — do not admit again unless you undo it below.'; }
+  else if(st === 'wrong_activity'){ cls='bad'; big='✗ Wrong activity';
+    det = 'This ticket is for ' + (d.belongs_to||'another activity') + ', not this one.'; }
+  else if(st === 'not_found'){ cls='bad'; big='✗ Not a valid ticket';
+    det = (d.code||'') + " isn't on the system. Double-check with the person."; }
+  else { cls='bad'; big='Could not read that'; det='Try scanning again, or check them in by name below.'; }
+  box.className = 'scan-result on ' + cls;
+  box.innerHTML = '<div class="big">'+big+'</div><div class="det">'+det+'</div>';
+  $('scan-hint').textContent = '';
+  $('scan-next').classList.add('on');
+}
+async function scanNext(){
+  $('scan-result').className = 'scan-result';
+  $('scan-next').classList.remove('on');
+  $('scan-hint').textContent = 'Point the camera at the QR code on their ticket.';
+  busy = false;
+  try{ await qr.resume(); }catch(e){ try{ await qr.start({facingMode:"environment"},
+    {fps:10,qrbox:{width:250,height:250}}, onScan, ()=>{}); }catch(e2){} }
+}
+async function closeScanner(){
+  try{ if(qr){ await qr.stop(); } }catch(e){}
+  $('scan-overlay').classList.remove('on');
+  busy = false;
+  load();
+}
+$('scanbtn').onclick = openScanner;
+$('scan-next').onclick = scanNext;
+$('scan-close').onclick = closeScanner;
 </script>
 </body>
 </html>

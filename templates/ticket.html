@@ -58,6 +58,12 @@
       </div>
       <div class="body">
         <div class="code">{{ r['ticket_code'] }}</div>
+        <div style="text-align:center;margin:0 0 18px">
+          <img src="/ticketqr/{{ r['ticket_code'] }}.png" alt="Ticket QR code"
+               width="210" height="210" style="width:210px;height:210px">
+          <div style="font-size:.85rem;color:var(--muted);margin-top:6px">
+            Show this at your activity to check in</div>
+        </div>
         <dl>
           <dt>Name</dt><dd>{{ r['name'] }}</dd>
           <dt>Activity</dt><dd>{{ r['activity_name'] }}</dd>
