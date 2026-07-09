@@ -870,6 +870,43 @@ def api_checkin_mark():
                     "was_already_checked_in": bool(checked and already)})
 
 
+@app.route("/api/checkin/scan", methods=["POST"])
+def api_checkin_scan():
+    """Check in by QR scan. Accepts the raw scanned text (a ticket URL or code),
+    extracts the ticket code, and checks it in for this activity — reporting
+    already-checked-in / wrong-activity / not-found so staff catch reuse."""
+    data = request.get_json(silent=True) or {}
+    token = data.get("token", "")
+    name = checkin_activity_from_token(token)
+    if name is None:
+        return jsonify({"ok": False, "status": "bad_link",
+                        "error": "Invalid check-in link."}), 403
+    raw = (data.get("code") or "").strip()
+    m = re.search(r"OAD-[0-9A-Fa-f]+", raw, re.IGNORECASE)
+    code = (m.group(0) if m else raw).upper()
+    db = get_db()
+    r = db.execute(
+        "SELECT ticket_code,name,party_size,slot,activity_name,checked_in_at "
+        "FROM registrations WHERE ticket_code=?", (code,)
+    ).fetchone()
+    if not r:
+        return jsonify({"ok": True, "status": "not_found", "code": code})
+    info = {"code": code, "name": r["name"], "party_size": r["party_size"],
+            "slot_label": pretty_slot(r["slot"])}
+    if r["activity_name"] != name:
+        info["belongs_to"] = r["activity_name"]
+        return jsonify({"ok": True, "status": "wrong_activity", **info})
+    if r["checked_in_at"]:
+        info["checked_in_at"] = r["checked_in_at"]
+        return jsonify({"ok": True, "status": "already", **info})
+    ts = datetime.now().isoformat(timespec="seconds")
+    db.execute("UPDATE registrations SET checked_in_at=? WHERE ticket_code=?",
+               (ts, code))
+    db.commit()
+    info["checked_in_at"] = ts
+    return jsonify({"ok": True, "status": "checked_in", **info})
+
+
 @app.route("/checkin/<token>/print")
 def checkin_print(token):
     name = checkin_activity_from_token(token)
