@@ -28,6 +28,7 @@ import urllib.error
 from email.message import EmailMessage
 from datetime import datetime
 from itsdangerous import URLSafeSerializer
+from markupsafe import escape
 from flask import (
     Flask, request, jsonify, render_template, redirect,
     url_for, Response, g, abort, session, send_file,
@@ -73,6 +74,11 @@ EMAIL_FROM_NAME = os.environ.get("EMAIL_FROM_NAME", "Friends of Big Bear Valley"
 # (booth volunteers collect contact info). Set SHOW_TICKET_OPTIN=1 to turn it on
 # for future events where participants opt in themselves.
 SHOW_TICKET_OPTIN = os.environ.get("SHOW_TICKET_OPTIN", "").strip().lower() in ("1", "true", "yes", "on")
+
+# Optional site-wide warning banner. Set SITE_BANNER (in Render → Environment) to
+# a message to show a bold red bar on every page (e.g. during a test window);
+# clear it to remove the banner. No code change needed to turn on/off.
+SITE_BANNER = os.environ.get("SITE_BANNER", "").strip()
 
 # === GitHub sync — pushes data/activities.json back to the repo when the
 # curated activity list changes via /admin/activities. The actual push runs
@@ -381,6 +387,26 @@ def require_admin():
     if key != ADMIN_KEY:
         abort(401)
     return key
+
+
+@app.after_request
+def _inject_site_banner(resp):
+    """When SITE_BANNER is set, prepend a bold red warning bar to every HTML
+    page (test/maintenance notice). Non-HTML responses are left untouched."""
+    if SITE_BANNER and resp.mimetype == "text/html":
+        try:
+            body = resp.get_data(as_text=True)
+        except Exception:
+            return resp
+        if "<body>" in body:
+            bar = (
+                '<div style="background:#e01414;color:#fff;font-weight:800;'
+                'text-align:center;padding:12px 16px;font-size:1rem;line-height:1.4;'
+                'font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;'
+                'position:relative;z-index:99999">' + str(escape(SITE_BANNER)) + '</div>'
+            )
+            resp.set_data(body.replace("<body>", "<body>" + bar, 1))
+    return resp
 
 
 # ----- Public routes --------------------------------------------------------
