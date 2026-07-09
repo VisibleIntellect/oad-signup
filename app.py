@@ -882,7 +882,9 @@ def api_checkin_scan():
         return jsonify({"ok": False, "status": "bad_link",
                         "error": "Invalid check-in link."}), 403
     raw = (data.get("code") or "").strip()
-    m = re.search(r"OAD-[0-9A-Fa-f]+", raw, re.IGNORECASE)
+    # Ticket codes are exactly "OAD-" + 6 hex chars. Anchoring to {6} avoids
+    # falsely matching the "oad-a…" inside the oad-availability domain.
+    m = re.search(r"OAD-[0-9A-Fa-f]{6}", raw, re.IGNORECASE)
     code = (m.group(0) if m else raw).upper()
     db = get_db()
     r = db.execute(
